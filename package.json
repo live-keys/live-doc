@@ -1,0 +1,19 @@
+{
+  "name": "live-doc",
+  "version": "1.0.0",
+  "description": "LiveCV's documentation generator. Requires doxygen to be installed and locatable within the system path.",
+  "main": "live-doc.js",
+  "dependencies": {
+    "marked": "^0.5.2",
+    "moxygen": "^0.7.12"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "live-doc"
+  ],
+  "author": "",
+  "license": "ISC"
+}
