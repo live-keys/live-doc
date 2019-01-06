@@ -24,7 +24,6 @@ if ( !fs.existsSync(outpath + '/md') ){
     fs.mkdirSync(outpath + '/md')
 }
 
-
 console.log("\nExecuting Doxygen in " + srcpath)
 console.log("-----------------------------------------------------------\n")
 
@@ -119,7 +118,127 @@ function resolveMarkDown(mdpath){
 
     var fileMdContent = fs.readFileSync(mdabsolutepath, 'utf8')
 
-    result.content = marked(fileMdContent)
+    var renderer = new marked.Renderer();
+
+    function iterateProperty(renderer, type, value, level){
+        if ( type === 'plugin' ){
+            renderer.currentPlugin = value
+            renderer.indexCollector[value] = []
+            return ''
+        } else if ( type === 'qmlType' ){
+            renderer.currentType = {
+                name : value,
+                path : renderer.currentPlugin + '.' + value,
+                brief : '',
+                inherits : '',
+                properties : [],
+                methods : [],
+                enums : []
+            }
+            renderer.indexCollector[renderer.currentPlugin].push(renderer.currentType)
+            return `<h1><code>${value}</code> type</h1>\n<!-----classsummary:${renderer.currentPlugin}:${value}----->\n`
+        } else if ( type === 'qmlInherits' ){
+            renderer.currentType.inherits = value
+            return ''
+        } else if ( type === 'qmlBrief' ){
+            renderer.currentType.brief = value
+            return `<p>${value}</p>\n`
+        } else if ( type === 'qmlEnum' ){
+            renderer.currentType.enums.push(value)
+            return `<h4><code>${value}</code> enum</h2>\n`
+        } else if ( type === 'qmlProperty' ){
+            renderer.currentType.properties.push(value)
+            return `<h4><code>${value}</code> property</h2>\n`
+        } else if ( type === 'qmlMethod' ){
+            renderer.currentType.methods.push(value)
+            return `<h4><code>${value}</code> method</h2>\n`
+        } else if ( type === 'qmlSummary' ){
+            return `<h2>Summary</h2>\n<!-----pluginsummary:${value}----->\n` 
+        }
+
+        return ''
+    }
+
+    renderer.currentPlugin = ''
+    renderer.currentType = ''
+    renderer.indexCollector = {}
+
+    // Override function
+    renderer.paragraph = function (text, level) {
+        var trimmedText = text.trim()
+        if ( trimmedText.startsWith('{') && trimmedText.endsWith('}') ){
+            var result = '';
+            var segments = trimmedText.split('}')
+            var validSegments = 0
+            for ( var i = 0; i < segments.length; ++i ){
+                var segment = segments[i].trim()
+                if ( segment.startsWith('{') ){
+                    var [propertyType, propertyValue] = segment.substring(1).split(':')
+                    result += iterateProperty(renderer, propertyType.trim(), propertyValue.trim(), level)
+                    validSegments++;
+                }
+            }
+
+            if ( validSegments > 0 )
+                return result;
+        }
+        return '<p>' + text + '</p>\n';
+    };
+
+    var tokens = marked.lexer(fileMdContent);
+
+    // create html content
+    result.content = marked(marked.parser(tokens, { renderer: renderer}))
+
+    // replace plugin summary with actual content
+    result.content = result.content.replace(/<\!\-{5}pluginsummary\:([a-zA-Z\.]*)\-{5}>/g, function(match, contents, offset, input_string){
+        var result = '<table>'
+
+        var plugin = renderer.indexCollector[contents]
+        for ( var i = 0; i < plugin.length; ++i ){
+            var cls = plugin[i]
+            result += `<tr><td>Type <code>${cls.name}</code></td><td>${cls.brief}</td></tr>`
+        }
+        return result + '</table>';
+    })
+
+    // replace class summary with actual content
+    result.content = result.content.replace(/<\!\-{5}classsummary\:([a-zA-Z\.]*\:[[a-zA-Z]*)\-{5}>/g, function(match, contents, offset, input_string){
+        var result = ''
+        var [pluginPath, requiredType] = contents.split(':')
+
+        var plugin = renderer.indexCollector[pluginPath]
+        for ( var i = 0; i < plugin.length; ++i ){
+            var cls = plugin[i]
+            if ( cls.path === pluginPath + '.' + requiredType ){
+                if ( cls.inherits.length > 0 ){
+                    result += `<table><tr><td>Inherits</td><td><code>${cls.inherits}</code></td></tr></table>\n`
+                }
+                if ( cls.enums.length > 0 ){
+                    result += '<table>'
+                    for ( var j = 0; j < cls.enums.length; ++j ){
+                        result += '<tr><td>Enum</td><td><code>' + cls.enums[j] + '</code></td></tr>'
+                    }
+                    result += '</table>\n'
+                }
+                if ( cls.properties.length > 0 ){
+                    result += '<table>'
+                    for ( var j = 0; j < cls.properties.length; ++j ){
+                        result += '<tr><td>Property</td><td><code>' + cls.properties[j] + '</code></td></tr>'
+                    }
+                    result += '</table>\n'
+                }
+                if ( cls.methods.length > 0 ){
+                    result += '<table>'
+                    for ( var j = 0; j < cls.methods.length; ++j ){
+                        result += '<tr><td>Method</td><td><code>' + cls.methods[j] + '</code></td></tr>'
+                    }
+                    result += '</table>\n'
+                }
+            }
+        }
+        return result;
+    });
 
     return result
 }
