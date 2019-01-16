@@ -17,8 +17,11 @@ var srcpath   = src + '/doc/src';
 if ( fs.lstatSync(indexPath).isDirectory() ){
     indexPath = indexPath + '/index.json'
 }
-if ( !fs.lstatSync(outpath).isDirectory() ){
-    throw new Error("Output path does not exist: " + outpath)
+if ( !fs.lstatSync(src).isDirectory() ){
+    throw new Error("Source path does not exist: " + src)
+}
+if ( !fs.existsSync(outpath) ){
+    fs.mkdirSync(outpath)
 }
 if ( !fs.existsSync(outpath + '/md') ){
     fs.mkdirSync(outpath + '/md')
