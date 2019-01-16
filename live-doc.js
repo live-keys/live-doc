@@ -133,6 +133,7 @@ function resolveMarkDown(mdpath){
                 inherits : '',
                 properties : [],
                 methods : [],
+                signals :[],
                 enums : []
             }
             renderer.indexCollector[renderer.currentPlugin].push(renderer.currentType)
@@ -152,6 +153,9 @@ function resolveMarkDown(mdpath){
         } else if ( type === 'qmlMethod' ){
             renderer.currentType.methods.push(value)
             return `<h4><code>${value}</code> method</h2>\n`
+        } else if ( type === 'qmlSignal' ){
+            renderer.currentType.signals.push(value)
+            return `<h4><code>${value}</code> signal</h2>\n`
         } else if ( type === 'qmlSummary' ){
             return `<h2>Summary</h2>\n<!-----pluginsummary:${value}----->\n` 
         }
@@ -232,6 +236,13 @@ function resolveMarkDown(mdpath){
                     result += '<table>'
                     for ( var j = 0; j < cls.methods.length; ++j ){
                         result += '<tr><td>Method</td><td><code>' + cls.methods[j] + '</code></td></tr>'
+                    }
+                    result += '</table>\n'
+                }
+                if ( cls.signals.length > 0 ){
+                    result += '<table>'
+                    for ( var j = 0; j < cls.signals.length; ++j ){
+                        result += '<tr><td>Signal</td><td><code>' + cls.signals[j] + '</code></td></tr>'
                     }
                     result += '</table>\n'
                 }
