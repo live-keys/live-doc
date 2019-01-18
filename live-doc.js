@@ -231,9 +231,7 @@ function resolveMarkDown(mdpath) {
         return '<p>' + text + '</p>\n';
     };
 
-    function mdToHTML(htmlabsolutepath, href) {
-
-        let anchor = false;
+    function mdToHTML(htmlabsolutepath, href, anchor) {
         if (href.indexOf(".md") > 0) {
             // if (href.indexOf("CommandLineParser") > 0)
             //     console.log("######### " + href);
@@ -256,16 +254,16 @@ function resolveMarkDown(mdpath) {
         return [href, anchor];
     }
 
-    function localAnchorLink(htmlabsolutepath, href) {
+    function localAnchorLink(href, anchor) {
         if (href[0] == "#")
             return [href.substring(1), true];
-        return [href, false];
+        return [href, anchor];
     }
 
     renderer.link = function (href, title, text) {
-
-        [href, anchor] = mdToHTML(htmlabsolutepath, href);
-        [href, anchor] = localAnchorLink(htmlabsolutepath, href);
+        let anchor = false;
+        [href, anchor] = mdToHTML(htmlabsolutepath, href, anchor);
+        [href, anchor] = localAnchorLink(href, anchor);
 
         href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
         if (href === null) {
