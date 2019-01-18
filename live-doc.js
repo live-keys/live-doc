@@ -110,7 +110,8 @@ function resolveMarkDown(mdpath) {
     var result = {
         'content': '',
         'titles': [],
-        'resolvedLink': []
+        'resolvedLink': [],
+        // 'relativePath': ''
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
@@ -204,6 +205,31 @@ function resolveMarkDown(mdpath) {
         }
         return '<p>' + text + '</p>\n';
     };
+
+    renderer.heading = function (text, level, raw, slugger) {
+        let id;
+        if (text.indexOf("{#") > 0) {
+            text = text.split("{#");
+            id = text[1].slice(0, -1);
+            text = text[0];
+        }
+
+        // if (this.options.headerIds) {
+        //     return '<h' +
+        //         level +
+        //         ' id="' +
+        //         this.options.headerPrefix +
+        //         slugger.slug(raw) +
+        //         '">' +
+        //         text +
+        //         '</h' +
+        //         level +
+        //         '>\n';
+        // }
+        // ignore IDs
+        return '<h' + level + ' id="' + id + '">' + text + '</h' + level + '>\n';
+    };
+
 
     var tokens = marked.lexer(fileMdContent);
 

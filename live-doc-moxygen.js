@@ -17,7 +17,7 @@ moxygen.run(assign({}, moxygen.defaultOptions, {
     pages: 'false',
     classes: false,
     noindex: false,
-    anchors: false,
+    anchors: true,
     htmlAnchors: false,
     language: 'cpp',
     templates: 'templates'
