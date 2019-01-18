@@ -27,26 +27,26 @@ if (!fs.existsSync(outpath + '/md')) {
     fs.mkdirSync(outpath + '/md')
 }
 
-console.log("\nExecuting Doxygen in " + srcpath)
-console.log("-----------------------------------------------------------\n")
+// console.log("\nExecuting Doxygen in " + srcpath)
+// console.log("-----------------------------------------------------------\n")
 
-child_process.execSync('doxygen Doxyfile', {
-    cwd: srcpath,
-    stdio: [0, 1, 2]
-});
+// child_process.execSync('doxygen Doxyfile', {
+//     cwd: srcpath,
+//     stdio: [0, 1, 2]
+// });
 
-console.log("\nDoxygen done")
+// console.log("\nDoxygen done")
 
 
-console.log("\nExecuting moxygen in " + outpath)
-console.log("-----------------------------------------------------------\n")
+// console.log("\nExecuting moxygen in " + outpath)
+// console.log("-----------------------------------------------------------\n")
 
-// Decoding %20 as space
-child_process.execSync('node live-doc-moxygen.js ' + outpath.replace(" ", "%20"), {
-    stdio: [0, 1, 2]
-});
+// // Decoding %20 as space
+// child_process.execSync('node live-doc-moxygen.js ' + outpath.replace(" ", "%20"), {
+//     stdio: [0, 1, 2]
+// });
 
-console.log("\nMoxygen done")
+// console.log("\nMoxygen done")
 
 console.log("\nStarting live-doc")
 console.log("-----------------------------------------------------------\n")
@@ -106,12 +106,37 @@ function resolveList(list) {
     return result;
 }
 
+function cleanUrl(sanitize, base, href) {
+    if (sanitize) {
+        try {
+            var prot = decodeURIComponent(unescape(href))
+                .replace(/[^\w:]/g, '')
+                .toLowerCase();
+        } catch (e) {
+            return null;
+        }
+        if (prot.indexOf('javascript:') === 0 || prot.indexOf('vbscript:') === 0 || prot.indexOf('data:') === 0) {
+            return null;
+        }
+    }
+    if (base && !originIndependentUrl.test(href)) {
+        href = resolveUrl(base, href);
+    }
+    try {
+        href = encodeURI(href).replace(/%25/g, '%'); //.replace(/%23/g, '#');
+    } catch (e) {
+        return null;
+    }
+    return href;
+}
+
+
 function resolveMarkDown(mdpath) {
     var result = {
         'content': '',
         'titles': [],
         'resolvedLink': [],
-        // 'relativePath': ''
+        'relativePath': ''
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
@@ -204,6 +229,55 @@ function resolveMarkDown(mdpath) {
                 return result;
         }
         return '<p>' + text + '</p>\n';
+    };
+
+    function mdToHTML(htmlabsolutepath, href) {
+
+        let anchor = false;
+        if (href.indexOf(".md") > 0) {
+            // if (href.indexOf("CommandLineParser") > 0)
+            //     console.log("######### " + href);
+            let currentFilePath = htmlabsolutepath.split("doc/output/")[1];
+            currentFilePath = currentFilePath.split(".html")[0];
+            let hrefFilePath = href.split("doc/output/md/")[1];
+            // if (href.indexOf("CommandLineParser") > 0)
+            //     console.log("######### " + hrefFilePath);
+            if (hrefFilePath == undefined)
+                return [href, anchor];
+            hrefFilePath = hrefFilePath.split(".md#");
+
+            if (hrefFilePath[0] === currentFilePath) {
+                href = hrefFilePath[1];
+                anchor = true;
+            }
+            if (href.indexOf("CommandLineParser") > 0)
+                console.log("######### " + [href, anchor]);
+        }
+        return [href, anchor];
+    }
+
+    function localAnchorLink(htmlabsolutepath, href) {
+        if (href[0] == "#")
+            return [href.substring(1), true];
+        return [href, false];
+    }
+
+    renderer.link = function (href, title, text) {
+
+        [href, anchor] = mdToHTML(htmlabsolutepath, href);
+        [href, anchor] = localAnchorLink(htmlabsolutepath, href);
+
+        href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
+        if (href === null) {
+            return text;
+        }
+
+        var out = '<a href="' + (anchor ? "#" : "") + escape(href) + '"';
+        if (title) {
+            out += ' title="' + title + '"';
+        }
+        out += '>' + text + '</a>';
+        return out;
     };
 
     renderer.heading = function (text, level, raw, slugger) {
