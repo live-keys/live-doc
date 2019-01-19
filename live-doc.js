@@ -27,6 +27,10 @@ if (!fs.existsSync(outpath + '/md')) {
     fs.mkdirSync(outpath + '/md')
 }
 
+if (!fs.existsSync(outpath + '/html')) {
+    fs.mkdirSync(outpath + '/html')
+}
+
 // console.log("\nExecuting Doxygen in " + srcpath)
 // console.log("-----------------------------------------------------------\n")
 
@@ -95,6 +99,7 @@ function resolveList(list) {
                 return replacements[all] || all;
             });
 
+
             fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
 
         } else if (typeof node === 'string' || node instanceof String) {
@@ -143,7 +148,7 @@ function resolveMarkDown(mdpath) {
     var absoluteOutPath = pathmanage.resolve(outpath)
 
     var mdabsolutepath = parentDir + '/' + mdpath
-    var htmlabsolutepath = absoluteOutPath + '/' + pathmanage.parse(mdpath).name + '.html'
+    var htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + htmlabsolutepath)
@@ -233,23 +238,16 @@ function resolveMarkDown(mdpath) {
 
     function mdToHTML(htmlabsolutepath, href, anchor) {
         if (href.indexOf(".md") > 0) {
-            // if (href.indexOf("CommandLineParser") > 0)
-            //     console.log("######### " + href);
-            let currentFilePath = htmlabsolutepath.split("doc/output/")[1];
+            let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
             currentFilePath = currentFilePath.split(".html")[0];
             let hrefFilePath = href.split("doc/output/md/")[1];
-            // if (href.indexOf("CommandLineParser") > 0)
-            //     console.log("######### " + hrefFilePath);
             if (hrefFilePath == undefined)
                 return [href, anchor];
             hrefFilePath = hrefFilePath.split(".md#");
-
             if (hrefFilePath[0] === currentFilePath) {
                 href = hrefFilePath[1];
                 anchor = true;
             }
-            if (href.indexOf("CommandLineParser") > 0)
-                console.log("######### " + [href, anchor]);
         }
         return [href, anchor];
     }
@@ -366,6 +364,62 @@ function resolveMarkDown(mdpath) {
         }
         return result;
     });
+
+    function wrapContent(content, indexList) {
+        return "<div class='row'>" +
+            "<div class='col-3'>" + indexList + "</div>" +
+            "<div id='wrapper' class='col-9'>" + content + "</div>" +
+            "</div>";
+    }
+
+    function isArray(what) {
+        return Object.prototype.toString.call(what) === '[object Array]';
+    }
+
+    function isObject(what) {
+        return Object.prototype.toString.call(what) === '[object Object]';
+    }
+
+    function printLevel(level, num) {
+        let result = '';
+        if (typeof level === 'string' || level instanceof String) {
+            level = level.trim();
+            result = level;
+            if (result != '')
+                result += "<hr>";
+        } else {
+            for (var key in level) {
+                if (isObject(level[key]) || isArray(level[key])) {
+                    result += printLevel(level[key], num + 1);
+                } else {
+                    if (!isNaN(Number(key))) {
+                        result += num + " " + "<a href='" + level[key] + "'>" + level[key] + "</a>";
+                    } else {
+                        result += num + " " + "<a href='" + level[key] + "'>" + key + "</a>";
+                    }
+
+                    result += "<hr>";
+                }
+            }
+        }
+
+        return result;
+    }
+
+    function createIndexList() {
+        let indexJson = require(indexPath);
+        let result = '';
+        for (var key in indexJson) {
+            let level = indexJson[key]
+            result += printLevel(level, 1);
+        }
+
+        return result;
+    }
+
+    let indexList = createIndexList();
+
+    result.content = wrapContent(result.content, indexList);
 
     return result
 }
