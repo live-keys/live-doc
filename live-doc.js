@@ -367,7 +367,7 @@ function resolveMarkDown(mdpath) {
 
     function wrapContent(content, indexList) {
         return "<div class='row'>" +
-            "<div class='col-3'>" + indexList + "</div>" +
+            "<div id='indexList' class='col-3'>" + indexList + "</div>" +
             "<div id='wrapper' class='col-9'>" + content + "</div>" +
             "</div>";
     }
@@ -384,19 +384,24 @@ function resolveMarkDown(mdpath) {
         let result = '';
         if (typeof level === 'string' || level instanceof String) {
             level = level.trim();
-            result = level;
-            if (result != '')
+            if (level != '') {
+                result = "<div class='level-" + num + "'>";
+                result += level;
+                result += "</div>";
                 result += "<hr>";
+            }
         } else {
             for (var key in level) {
                 if (isObject(level[key]) || isArray(level[key])) {
                     result += printLevel(level[key], num + 1);
                 } else {
+                    result += "<div class='level-" + num + "'>";
                     if (!isNaN(Number(key))) {
-                        result += num + " " + "<a href='" + level[key] + "'>" + level[key] + "</a>";
+                        result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                     } else {
-                        result += num + " " + "<a href='" + level[key] + "'>" + key + "</a>";
+                        result += "<a href='" + level[key] + "'>" + key + "</a>";
                     }
+                    result += "</div>";
 
                     result += "<hr>";
                 }
@@ -410,7 +415,7 @@ function resolveMarkDown(mdpath) {
         let indexJson = require(indexPath);
         let result = '';
         for (var key in indexJson) {
-            let level = indexJson[key]
+            let level = indexJson[key];
             result += printLevel(level, 1);
         }
 
