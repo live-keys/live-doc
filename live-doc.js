@@ -58,6 +58,8 @@ console.log("-----------------------------------------------------------\n")
 var templateHtmlPath = src + '/doc/src/template.tpl.html'
 var templateHtml = fs.readFileSync(templateHtmlPath, 'utf8')
 
+var indexTablePath = src + '/doc/src/index.html'
+
 var templateCssPath = src + '/doc/src/documentation.css'
 fs.createReadStream(templateCssPath).pipe(fs.createWriteStream(src + '/doc/output/documentation.css'));
 
@@ -109,6 +111,30 @@ function resolveList(list) {
         }
     }
     return result;
+}
+
+function addIndexList(list) {
+    var result = new IndexList();
+    for (var i = 0; i < list.length; ++i) {
+        var node = list[i];
+
+        if (node.constructor === Array) {
+            addIndexList(node)
+        } else if (typeof node === 'object' && node !== null) {
+            let key = Object.keys(node)[0];
+            result.data.push(new IndexLink(key, addIndexTableToHtml(node[key])));
+        }
+    }
+    return result;
+}
+
+function addIndexTableToHtml(mdpath) {
+    let absoluteOutPath = pathmanage.resolve(outpath)
+    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
+    let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
+    contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
+    fs.writeFileSync(htmlabsolutepath, contentHtml)
+    return htmlabsolutepath;
 }
 
 function cleanUrl(sanitize, base, href) {
@@ -365,12 +391,12 @@ function resolveMarkDown(mdpath) {
         return result;
     });
 
-    function wrapContent(content, indexList) {
-        return "<div class='row'>" +
-            "<div id='indexList' class='col-3'>" + indexList + "</div>" +
-            "<div id='wrapper' class='col-9'>" + content + "</div>" +
-            "</div>";
-    }
+    // function wrapContent(content, indexList) {
+    //     return "<div class='row'>" +
+    //         "<div id='indexList' class='col-3'>" + indexList + "</div>" +
+    //         "<div id='wrapper' class='col-9'>" + content + "</div>" +
+    //         "</div>";
+    // }
 
     function isArray(what) {
         return Object.prototype.toString.call(what) === '[object Array]';
@@ -385,25 +411,38 @@ function resolveMarkDown(mdpath) {
         if (typeof level === 'string' || level instanceof String) {
             level = level.trim();
             if (level != '') {
-                result = "<div class='level-" + num + "'>";
+                if (skipFirstHr)
+                    skipFirstHr = false;
+                else
+                    result += "<hr>";
+                result += "<div class='level-" + num + "'>";
                 result += level;
                 result += "</div>";
-                result += "<hr>";
+
             }
         } else {
             for (var key in level) {
                 if (isObject(level[key]) || isArray(level[key])) {
                     result += printLevel(level[key], num + 1);
                 } else {
+                    if (skipFirstHr)
+                        skipFirstHr = false;
+                    else
+                        result += "<hr>";
                     result += "<div class='level-" + num + "'>";
                     if (!isNaN(Number(key))) {
+                        if (level[key].indexOf(">>") > 0) {
+                            level[key].replace("md", "html");
+                            let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+                            console.log(level[key]);
+                            console.log(currentFilePath);
+                            console.log("#######");
+                        }
                         result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                     } else {
                         result += "<a href='" + level[key] + "'>" + key + "</a>";
                     }
                     result += "</div>";
-
-                    result += "<hr>";
                 }
             }
         }
@@ -411,9 +450,10 @@ function resolveMarkDown(mdpath) {
         return result;
     }
 
-    function createIndexList() {
+    function createAndUpdateIndexList() {
         let indexJson = require(indexPath);
         let result = '';
+
         for (var key in indexJson) {
             let level = indexJson[key];
             result += printLevel(level, 1);
@@ -422,13 +462,24 @@ function resolveMarkDown(mdpath) {
         return result;
     }
 
-    let indexList = createIndexList();
+    skipFirstHr = true;
 
-    result.content = wrapContent(result.content, indexList);
+    if (fs.existsSync(indexTablePath)) {
+        // do something 
+    } else {
+        fs.openSync(indexTablePath, 'w');
+        fs.writeFileSync(indexTablePath, createAndUpdateIndexList())
+    }
+
+    // result.content = wrapContent(result.content, indexList);
 
     return result
 }
 
+if (fs.existsSync(indexTablePath))
+    fs.unlinkSync(indexTablePath);
+
 var structure = resolveList(obj)
+addIndexList(obj)
 
 console.log("\nDone")
