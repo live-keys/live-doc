@@ -409,8 +409,8 @@ function resolveMarkDown(mdpath) {
         while ((match = re.exec(currHtml)) != null) {
 
 
-            let replaceRegex = RegExp('^.*\"(.*)\".*\<((code)|(Type))\>(.*)\<\/a\>$');
-            let text = match[0].replace(replaceRegex, '<a href="$1">$5</a>')
+            let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
+            let text = match[0].replace(replaceRegex, '<a href="$1">$2</a>')
             // let text = match[0];
             result += (text + "<hr>");
 
