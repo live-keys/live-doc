@@ -122,7 +122,7 @@ function addIndexList(list) {
             addIndexList(node)
         } else if (typeof node === 'object' && node !== null) {
             let key = Object.keys(node)[0];
-            result.data.push(new IndexLink(key, addIndexTableToHtml(node[key])));
+            addIndexTableToHtml(node[key]);
         }
     }
     return result;
@@ -167,7 +167,7 @@ function resolveMarkDown(mdpath) {
         'content': '',
         'titles': [],
         'resolvedLink': [],
-        'relativePath': ''
+        'relativePath': '',
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
@@ -209,6 +209,7 @@ function resolveMarkDown(mdpath) {
                 signals: [],
                 enums: []
             }
+
             renderer.indexCollector[renderer.currentPlugin].push(renderer.currentType)
             return `<h1><code>${value}</code> type</h1>\n<!-----classsummary:${renderer.currentPlugin}:${value}----->\n`
         } else if (type === 'qmlInherits') {
@@ -341,7 +342,8 @@ function resolveMarkDown(mdpath) {
         var plugin = renderer.indexCollector[contents]
         for (var i = 0; i < plugin.length; ++i) {
             var cls = plugin[i]
-            result += `<tr><td>Type <code>${cls.name}</code></td><td>${cls.brief}</td></tr>`
+            result += `<tr><td><code>Type</code> <a href=""><code>${cls.name}</code></a></td><td>${cls.brief}</td></tr>`
+            // todo link
         }
         return result + '</table>';
     })
@@ -398,6 +400,56 @@ function resolveMarkDown(mdpath) {
     //         "</div>";
     // }
 
+    function generateClassesAndTypes() {
+        let currHtml = fs.readFileSync(htmlabsolutepath, "utf-8")
+        // let re = RegExp("\<code\>class\<\/code\>.+\</a\>", 'g')
+        let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g')
+
+        let result = '<div class="expandable">';
+        while ((match = re.exec(currHtml)) != null) {
+
+
+            let replaceRegex = RegExp('^.*\"(.*)\".*\<((code)|(Type))\>(.*)\<\/a\>$');
+            let text = match[0].replace(replaceRegex, '<a href="$1">$5</a>')
+            // let text = match[0];
+            result += (text + "<hr>");
+
+            // console.log(match.index + " " + match[0]);
+            console.log("#######");
+            console.log(match[0]);
+            console.log(text);
+            console.log("#######");
+
+            // result = ""
+
+        }
+        result += "</div>";
+
+        return result;
+    }
+
+    function putClassesAndTypes(indexHTML) {
+        let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+
+        var re = RegExp("\'[^']*>>\'", 'g');
+        while ((match = re.exec(indexHTML)) != null) {
+            if (match[0].indexOf(currentFilePath) > 0) {
+                let i;
+                for (i = match.index; indexHTML[i] != '<'; i--);
+                start = i;
+
+                for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
+                end = i + 3;
+
+                // indexHTML = indexHTML.substring(0, start) + generateClassesAndTypes() + indexHTML.substring(end);
+                indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + generateClassesAndTypes() + indexHTML.substring(end);
+
+            }
+        }
+
+        return indexHTML;
+    }
+
     function isArray(what) {
         return Object.prototype.toString.call(what) === '[object Array]';
     }
@@ -432,11 +484,7 @@ function resolveMarkDown(mdpath) {
                     result += "<div class='level-" + num + "'>";
                     if (!isNaN(Number(key))) {
                         if (level[key].indexOf(">>") > 0) {
-                            level[key].replace("md", "html");
-                            let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
-                            console.log(level[key]);
-                            console.log(currentFilePath);
-                            console.log("#######");
+                            level[key] = level[key].replace(new RegExp("md", 'g'), "html");
                         }
                         result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                     } else {
@@ -464,12 +512,16 @@ function resolveMarkDown(mdpath) {
 
     skipFirstHr = true;
 
+    let indexHTML
     if (fs.existsSync(indexTablePath)) {
-        // do something 
+        indexHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
     } else {
-        fs.openSync(indexTablePath, 'w');
-        fs.writeFileSync(indexTablePath, createAndUpdateIndexList())
+        // fs.openSync(indexTablePath, 'w');
+        // fs.writeFileSync(indexTablePath, "")
+        indexHTML = createAndUpdateIndexList();
+        indexHTML = putClassesAndTypes(indexHTML);
     }
+    fs.writeFileSync(indexTablePath, indexHTML);
 
     // result.content = wrapContent(result.content, indexList);
 
@@ -478,6 +530,8 @@ function resolveMarkDown(mdpath) {
 
 if (fs.existsSync(indexTablePath))
     fs.unlinkSync(indexTablePath);
+
+
 
 var structure = resolveList(obj)
 addIndexList(obj)
