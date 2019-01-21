@@ -11,8 +11,12 @@ if (args.length !== 1) {
 
 var src = pathmanage.resolve(args[0])
 var indexPath = src + '/doc/pages';
-var outpath = src + '/doc/output';
+var outpath = src + '/doc/output/';
 var srcpath = src + '/doc/src';
+
+if (!fs.existsSync(indexPath)) {
+    fs.mkdirSync(indexPath)
+}
 
 if (fs.lstatSync(indexPath).isDirectory()) {
     indexPath = indexPath + '/index.json'
@@ -31,26 +35,26 @@ if (!fs.existsSync(outpath + '/html')) {
     fs.mkdirSync(outpath + '/html')
 }
 
-// console.log("\nExecuting Doxygen in " + srcpath)
-// console.log("-----------------------------------------------------------\n")
+console.log("\nExecuting Doxygen in " + srcpath)
+console.log("-----------------------------------------------------------\n")
 
-// child_process.execSync('doxygen Doxyfile', {
-//     cwd: srcpath,
-//     stdio: [0, 1, 2]
-// });
+child_process.execSync('doxygen Doxyfile', {
+    cwd: srcpath,
+    stdio: [0, 1, 2]
+});
 
-// console.log("\nDoxygen done")
+console.log("\nDoxygen done")
 
 
-// console.log("\nExecuting moxygen in " + outpath)
-// console.log("-----------------------------------------------------------\n")
+console.log("\nExecuting moxygen in " + outpath)
+console.log("-----------------------------------------------------------\n")
 
-// // Decoding %20 as space
-// child_process.execSync('node live-doc-moxygen.js ' + outpath.replace(" ", "%20"), {
-//     stdio: [0, 1, 2]
-// });
+// Decoding %20 as space
+child_process.execSync('node live-doc-moxygen.js ' + outpath.replace(" ", "%20"), {
+    stdio: [0, 1, 2]
+});
 
-// console.log("\nMoxygen done")
+console.log("\nMoxygen done")
 
 console.log("\nStarting live-doc")
 console.log("-----------------------------------------------------------\n")
@@ -58,7 +62,7 @@ console.log("-----------------------------------------------------------\n")
 var templateHtmlPath = src + '/doc/src/template.tpl.html'
 var templateHtml = fs.readFileSync(templateHtmlPath, 'utf8')
 
-var indexTablePath = src + '/doc/src/index.html'
+var indexTablePath = outpath + 'indexTable.html'
 
 var templateCssPath = src + '/doc/src/documentation.css'
 fs.createReadStream(templateCssPath).pipe(fs.createWriteStream(src + '/doc/output/documentation.css'));
@@ -100,7 +104,6 @@ function resolveList(list) {
             var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
                 return replacements[all] || all;
             });
-
 
             fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
 
@@ -174,7 +177,7 @@ function resolveMarkDown(mdpath) {
     var absoluteOutPath = pathmanage.resolve(outpath)
 
     var mdabsolutepath = parentDir + '/' + mdpath
-    var htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
+    var htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + htmlabsolutepath)
@@ -266,7 +269,12 @@ function resolveMarkDown(mdpath) {
     function mdToHTML(htmlabsolutepath, href, anchor) {
         if (href.indexOf(".md") > 0) {
             let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+
+            if (!currentFilePath)
+                console.log(htmlabsolutepath.split("doc/output/html/"))
+
             currentFilePath = currentFilePath.split(".html")[0];
+
             let hrefFilePath = href.split("doc/output/md/")[1];
             if (hrefFilePath == undefined)
                 return [href, anchor];
@@ -400,8 +408,9 @@ function resolveMarkDown(mdpath) {
     //         "</div>";
     // }
 
-    function generateClassesAndTypes() {
-        let currHtml = fs.readFileSync(htmlabsolutepath, "utf-8")
+    function generateClassesAndTypes(currHtml) {
+        // console.log(htmlabsolutepath);
+        // let currHtml = fs.readFileSync(htmlabsolutepath, "utf-8")
         // let re = RegExp("\<code\>class\<\/code\>.+\</a\>", 'g')
         let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g')
 
@@ -442,7 +451,7 @@ function resolveMarkDown(mdpath) {
                 end = i + 3;
 
                 // indexHTML = indexHTML.substring(0, start) + generateClassesAndTypes() + indexHTML.substring(end);
-                indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + generateClassesAndTypes() + indexHTML.substring(end);
+                indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + generateClassesAndTypes(result.content) + indexHTML.substring(end);
 
             }
         }
@@ -498,7 +507,7 @@ function resolveMarkDown(mdpath) {
         return result;
     }
 
-    function createAndUpdateIndexList() {
+    function initiateIndexList() {
         let indexJson = require(indexPath);
         let result = '';
 
@@ -510,20 +519,21 @@ function resolveMarkDown(mdpath) {
         return result;
     }
 
-    skipFirstHr = true;
-
-    let indexHTML
-    if (fs.existsSync(indexTablePath)) {
-        indexHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
-    } else {
-        // fs.openSync(indexTablePath, 'w');
-        // fs.writeFileSync(indexTablePath, "")
-        indexHTML = createAndUpdateIndexList();
-        indexHTML = putClassesAndTypes(indexHTML);
+    function populateIndexTableForCurr() {
+        skipFirstHr = true;
+        let indexTableHTML
+        if (fs.existsSync(indexTablePath)) {
+            indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
+        } else {
+            // fs.openSync(indexTablePath, 'w');
+            // fs.writeFileSync(indexTablePath, "")
+            indexTableHTML = initiateIndexList();
+            indexTableHTML = putClassesAndTypes(indexTableHTML);
+        }
+        fs.writeFileSync(indexTablePath, indexTableHTML);
     }
-    fs.writeFileSync(indexTablePath, indexHTML);
 
-    // result.content = wrapContent(result.content, indexList);
+    populateIndexTableForCurr();
 
     return result
 }
