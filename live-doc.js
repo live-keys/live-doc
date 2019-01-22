@@ -1,87 +1,33 @@
 let marked = require('marked')
 let pathmanage = require('path')
 var fs = require('fs');
-var child_process = require('child_process');
 
-var args = process.argv.slice(2);
+[isArray, isObject, cleanUrl] = require("./utils.js");
 
-if (args.length !== 1) {
-    throw new Error("Invalid arugment count. Usage: live-doc <path_to_livecv_src>")
-}
+[
+    src,
+    indexPath,
+    outpath,
+    absoluteOutPath,
+    srcpath,
+    templateHtmlPath,
+    templateHtml,
+    indexTablePath,
+    obj,
+    IndexTitle,
+    IndexLink,
+    IndexList
+] = require("./init.js")
 
-var src = pathmanage.resolve(args[0])
-var indexPath = src + '/doc/pages';
-var outpath = src + '/doc/output/';
-var srcpath = src + '/doc/src';
+require("./run_doxygen.js");
+require("./run_moxygen.js");
 
-if (!fs.existsSync(indexPath)) {
-    fs.mkdirSync(indexPath)
-}
+var mdpath;
 
-if (fs.lstatSync(indexPath).isDirectory()) {
-    indexPath = indexPath + '/index.json'
-}
-if (!fs.lstatSync(src).isDirectory()) {
-    throw new Error("Source path does not exist: " + src)
-}
-if (!fs.existsSync(outpath)) {
-    fs.mkdirSync(outpath)
-}
-if (!fs.existsSync(outpath + '/md')) {
-    fs.mkdirSync(outpath + '/md')
-}
+resolveList(obj);
+addIndexList(obj)
 
-if (!fs.existsSync(outpath + '/html')) {
-    fs.mkdirSync(outpath + '/html')
-}
-
-console.log("\nExecuting Doxygen in " + srcpath)
-console.log("-----------------------------------------------------------\n")
-
-child_process.execSync('doxygen Doxyfile', {
-    cwd: srcpath,
-    stdio: [0, 1, 2]
-});
-
-console.log("\nDoxygen done")
-
-
-console.log("\nExecuting moxygen in " + outpath)
-console.log("-----------------------------------------------------------\n")
-
-// Decoding %20 as space
-child_process.execSync('node live-doc-moxygen.js ' + outpath.replace(" ", "%20"), {
-    stdio: [0, 1, 2]
-});
-
-console.log("\nMoxygen done")
-
-console.log("\nStarting live-doc")
-console.log("-----------------------------------------------------------\n")
-
-var templateHtmlPath = src + '/doc/src/template.tpl.html'
-var templateHtml = fs.readFileSync(templateHtmlPath, 'utf8')
-
-var indexTablePath = outpath + 'indexTable.html'
-
-var templateCssPath = src + '/doc/src/documentation.css'
-fs.createReadStream(templateCssPath).pipe(fs.createWriteStream(src + '/doc/output/documentation.css'));
-
-
-var obj = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-
-function IndexTitle(name) {
-    this.name = name
-}
-
-function IndexLink(name, link) {
-    this.name = name
-    this.link = link
-}
-
-function IndexList() {
-    this.data = []
-}
+console.log("\nDone")
 
 function resolveList(list) {
     var result = new IndexList();
@@ -93,7 +39,8 @@ function resolveList(list) {
         } else if (typeof node === 'object' && node !== null) {
             var key = Object.keys(node)[0]
 
-            var resolvedMd = resolveMarkDown(node[key])
+            mdpath = node[key];
+            var resolvedMd = resolveMarkDown()
 
             result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
 
@@ -116,56 +63,7 @@ function resolveList(list) {
     return result;
 }
 
-function addIndexList(list) {
-    var result = new IndexList();
-    for (var i = 0; i < list.length; ++i) {
-        var node = list[i];
-
-        if (node.constructor === Array) {
-            addIndexList(node)
-        } else if (typeof node === 'object' && node !== null) {
-            let key = Object.keys(node)[0];
-            addIndexTableToHtml(node[key]);
-        }
-    }
-    return result;
-}
-
-function addIndexTableToHtml(mdpath) {
-    let absoluteOutPath = pathmanage.resolve(outpath)
-    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
-    let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
-    contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
-    fs.writeFileSync(htmlabsolutepath, contentHtml)
-    return htmlabsolutepath;
-}
-
-function cleanUrl(sanitize, base, href) {
-    if (sanitize) {
-        try {
-            var prot = decodeURIComponent(unescape(href))
-                .replace(/[^\w:]/g, '')
-                .toLowerCase();
-        } catch (e) {
-            return null;
-        }
-        if (prot.indexOf('javascript:') === 0 || prot.indexOf('vbscript:') === 0 || prot.indexOf('data:') === 0) {
-            return null;
-        }
-    }
-    if (base && !originIndependentUrl.test(href)) {
-        href = resolveUrl(base, href);
-    }
-    try {
-        href = encodeURI(href).replace(/%25/g, '%'); //.replace(/%23/g, '#');
-    } catch (e) {
-        return null;
-    }
-    return href;
-}
-
-
-function resolveMarkDown(mdpath) {
+function resolveMarkDown() {
     var result = {
         'content': '',
         'titles': [],
@@ -174,7 +72,6 @@ function resolveMarkDown(mdpath) {
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
-    var absoluteOutPath = pathmanage.resolve(outpath)
 
     var mdabsolutepath = parentDir + '/' + mdpath
     var htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
@@ -401,149 +298,134 @@ function resolveMarkDown(mdpath) {
         return result;
     });
 
-    // function wrapContent(content, indexList) {
-    //     return "<div class='row'>" +
-    //         "<div id='indexList' class='col-3'>" + indexList + "</div>" +
-    //         "<div id='wrapper' class='col-9'>" + content + "</div>" +
-    //         "</div>";
-    // }
+    return result
+}
 
-    function generateClassesAndTypes(currHtml) {
-        // console.log(htmlabsolutepath);
-        // let currHtml = fs.readFileSync(htmlabsolutepath, "utf-8")
-        // let re = RegExp("\<code\>class\<\/code\>.+\</a\>", 'g')
-        let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g')
+function addIndexList(list) {
+    var result = new IndexList();
+    for (var i = 0; i < list.length; ++i) {
+        var node = list[i];
 
-        let result = '<div class="expandable">';
-        while ((match = re.exec(currHtml)) != null) {
+        if (node.constructor === Array) {
+            addIndexList(node)
+        } else if (typeof node === 'object' && node !== null) {
+            let key = Object.keys(node)[0];
+            mdpath = node[key];
+            addIndexTableToHtml();
+        }
+    }
+    return result;
+}
 
+function addIndexTableToHtml() {
+    populateIndexTableForCurr();
 
-            let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
-            let text = match[0].replace(replaceRegex, '<a href="$1">$2</a>')
-            // let text = match[0];
-            result += (text + "<hr>");
+    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
+    let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
+    contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
+    fs.writeFileSync(htmlabsolutepath, contentHtml)
+    return htmlabsolutepath;
+}
 
-            // console.log(match.index + " " + match[0]);
-            console.log("#######");
-            console.log(match[0]);
-            console.log(text);
-            console.log("#######");
+function classesTypesIndexTable(currHtml) {
+    let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g')
 
-            // result = ""
+    let result = '<div class="expandable">';
+    while ((match = re.exec(currHtml)) != null) {
+        let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
+        let text = match[0].replace(replaceRegex, '<a href="$1">$2</a>')
+        result += (text + "<hr>");
+    }
+    result += "</div>";
+
+    return result;
+}
+
+function putClassesAndTypes(indexHTML) {
+    let htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
+    let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+
+    var re = RegExp("\'[^']*>>\'", 'g');
+    while ((match = re.exec(indexHTML)) != null) {
+        if (match[0].indexOf(currentFilePath) > 0) {
+            let i;
+            for (i = match.index; indexHTML[i] != '<'; i--);
+            start = i;
+
+            for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
+            end = i + 3;
+
+            // indexHTML = indexHTML.substring(0, start) + generateClassesAndTypes() + indexHTML.substring(end);
+            indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + classesTypesIndexTable(fs.readFileSync(htmlabsolutepath, "utf-8")) + indexHTML.substring(end);
 
         }
-        result += "</div>";
-
-        return result;
     }
 
-    function putClassesAndTypes(indexHTML) {
-        let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+    return indexHTML;
+}
 
-        var re = RegExp("\'[^']*>>\'", 'g');
-        while ((match = re.exec(indexHTML)) != null) {
-            if (match[0].indexOf(currentFilePath) > 0) {
-                let i;
-                for (i = match.index; indexHTML[i] != '<'; i--);
-                start = i;
+function printTableLevel(level, num) {
+    let result = '';
+    if (typeof level === 'string' || level instanceof String) {
+        level = level.trim();
+        if (level != '') {
+            if (skipFirstHr)
+                skipFirstHr = false;
+            else
+                result += "<hr>";
+            result += "<div class='level-" + num + "'>";
+            result += level;
+            result += "</div>";
 
-                for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
-                end = i + 3;
-
-                // indexHTML = indexHTML.substring(0, start) + generateClassesAndTypes() + indexHTML.substring(end);
-                indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + generateClassesAndTypes(result.content) + indexHTML.substring(end);
-
-            }
         }
-
-        return indexHTML;
-    }
-
-    function isArray(what) {
-        return Object.prototype.toString.call(what) === '[object Array]';
-    }
-
-    function isObject(what) {
-        return Object.prototype.toString.call(what) === '[object Object]';
-    }
-
-    function printLevel(level, num) {
-        let result = '';
-        if (typeof level === 'string' || level instanceof String) {
-            level = level.trim();
-            if (level != '') {
+    } else {
+        for (var key in level) {
+            if (isObject(level[key]) || isArray(level[key])) {
+                result += printTableLevel(level[key], num + 1);
+            } else {
                 if (skipFirstHr)
                     skipFirstHr = false;
                 else
                     result += "<hr>";
                 result += "<div class='level-" + num + "'>";
-                result += level;
-                result += "</div>";
-
-            }
-        } else {
-            for (var key in level) {
-                if (isObject(level[key]) || isArray(level[key])) {
-                    result += printLevel(level[key], num + 1);
-                } else {
-                    if (skipFirstHr)
-                        skipFirstHr = false;
-                    else
-                        result += "<hr>";
-                    result += "<div class='level-" + num + "'>";
-                    if (!isNaN(Number(key))) {
-                        if (level[key].indexOf(">>") > 0) {
-                            level[key] = level[key].replace(new RegExp("md", 'g'), "html");
-                        }
-                        result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
-                    } else {
-                        result += "<a href='" + level[key] + "'>" + key + "</a>";
+                if (!isNaN(Number(key))) {
+                    if (level[key].indexOf(">>") > 0) {
+                        level[key] = level[key].replace(new RegExp("md", 'g'), "html");
                     }
-                    result += "</div>";
+                    result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
+                } else {
+                    result += "<a href='" + level[key] + "'>" + key + "</a>";
                 }
+                result += "</div>";
             }
         }
-
-        return result;
     }
 
-    function initiateIndexList() {
-        let indexJson = require(indexPath);
-        let result = '';
-
-        for (var key in indexJson) {
-            let level = indexJson[key];
-            result += printLevel(level, 1);
-        }
-
-        return result;
-    }
-
-    function populateIndexTableForCurr() {
-        skipFirstHr = true;
-        let indexTableHTML
-        if (fs.existsSync(indexTablePath)) {
-            indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
-        } else {
-            // fs.openSync(indexTablePath, 'w');
-            // fs.writeFileSync(indexTablePath, "")
-            indexTableHTML = initiateIndexList();
-            indexTableHTML = putClassesAndTypes(indexTableHTML);
-        }
-        fs.writeFileSync(indexTablePath, indexTableHTML);
-    }
-
-    populateIndexTableForCurr();
-
-    return result
+    return result;
 }
 
-if (fs.existsSync(indexTablePath))
-    fs.unlinkSync(indexTablePath);
+function initiateIndexList() {
+    let indexJson = require(indexPath);
+    let result = '';
 
+    for (var key in indexJson) {
+        let level = indexJson[key];
+        result += printTableLevel(level, 1);
+    }
 
+    return result;
+}
 
-var structure = resolveList(obj)
-addIndexList(obj)
-
-console.log("\nDone")
+function populateIndexTableForCurr() {
+    skipFirstHr = true;
+    let indexTableHTML
+    if (fs.existsSync(indexTablePath)) {
+        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
+    } else {
+        // fs.openSync(indexTablePath, 'w');
+        // fs.writeFileSync(indexTablePath, "")
+        indexTableHTML = initiateIndexList();
+        indexTableHTML = putClassesAndTypes(indexTableHTML);
+    }
+    fs.writeFileSync(indexTablePath, indexTableHTML);
+}
