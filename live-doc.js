@@ -298,6 +298,8 @@ function resolveMarkDown() {
         return result;
     });
 
+    populateIndexTableForCurr(result.content);
+
     return result
 }
 
@@ -318,9 +320,7 @@ function addIndexList(list) {
 }
 
 function addIndexTableToHtml() {
-    populateIndexTableForCurr();
-
-    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html'
+    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html';
     let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
     contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
     fs.writeFileSync(htmlabsolutepath, contentHtml)
@@ -328,20 +328,23 @@ function addIndexTableToHtml() {
 }
 
 function classesTypesIndexTable(currHtml) {
-    let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g')
+    let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g');
+    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html';
 
     let result = '<div class="expandable">';
+    let firstHr = true;
     while ((match = re.exec(currHtml)) != null) {
         let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
-        let text = match[0].replace(replaceRegex, '<a href="$1">$2</a>')
-        result += (text + "<hr>");
+        let text = match[0].replace(replaceRegex, '<a href="' + htmlabsolutepath + '$1">$2</a>');
+        result += ((firstHr ? "" : "<hr>") + text);
+        firstHr = true;
     }
     result += "</div>";
 
     return result;
 }
 
-function putClassesAndTypes(indexHTML) {
+function putClassesAndTypes(indexHTML, currentPageHtml) {
     let htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
     let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
 
@@ -355,9 +358,7 @@ function putClassesAndTypes(indexHTML) {
             for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
             end = i + 3;
 
-            // indexHTML = indexHTML.substring(0, start) + generateClassesAndTypes() + indexHTML.substring(end);
-            indexHTML = indexHTML.substring(0, end) + "<hr><hr>" + classesTypesIndexTable(fs.readFileSync(htmlabsolutepath, "utf-8")) + indexHTML.substring(end);
-
+            indexHTML = indexHTML.substring(0, start) + classesTypesIndexTable(currentPageHtml) + indexHTML.substring(end);
         }
     }
 
@@ -416,16 +417,16 @@ function initiateIndexList() {
     return result;
 }
 
-function populateIndexTableForCurr() {
+function populateIndexTableForCurr(currentPageHtml) {
     skipFirstHr = true;
     let indexTableHTML
     if (fs.existsSync(indexTablePath)) {
-        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"));
+        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml);
     } else {
         // fs.openSync(indexTablePath, 'w');
         // fs.writeFileSync(indexTablePath, "")
         indexTableHTML = initiateIndexList();
-        indexTableHTML = putClassesAndTypes(indexTableHTML);
+        indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml);
     }
     fs.writeFileSync(indexTablePath, indexTableHTML);
 }
