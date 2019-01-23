@@ -50,8 +50,10 @@ function generateFileName(name, mdpath) {
     return generateDefaultFileName(name);
 }
 
-function generateAbsolutePath(absoluteOutPath, name, mdpath) {
-    return absoluteOutPath + "/html/" + generateFileName(name, mdpath);
+function generateAbsolutePath(absoluteOutPath, name, mdpath, anchor = [false, ""]) {
+    // anchor[0] -> true/false
+    // anchor[1] -> #anchor
+    return absoluteOutPath + "/html/" + generateFileName(name, mdpath) + (anchor[0] ? anchor[1] : "");
 }
 
 module.exports = [

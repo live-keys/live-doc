@@ -19,8 +19,8 @@ var fs = require('fs');
     IndexList
 ] = require("./init.js")
 
-require("./run_doxygen.js");
-require("./run_moxygen.js");
+// require("./run_doxygen.js");
+// require("./run_moxygen.js");
 
 var mdpath;
 
@@ -417,7 +417,8 @@ function printTableLevel(level, num) {
 
                     result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                 } else {
-                    result += "<a href='" + generateAbsolutePath(absoluteOutPath, pathmanage.parse(level[key]).name, level[key]) + "'>" + key + "</a>";
+                    let link = generateAbsolutePath(absoluteOutPath, pathmanage.parse(level[key]).name, level[key], [level[key].indexOf("#") > 0, level[key].substring(level[key].indexOf("#"))]);
+                    result += "<a href='" + link + "'>" + key + "</a>";
                 }
                 result += "</div>";
             }
