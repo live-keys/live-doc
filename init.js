@@ -12,13 +12,9 @@ if (args.length !== 1) {
 var src = pathmanage.resolve(args[0]);
 var indexPath = src + "/doc/pages";
 var outpath = src + "/doc/output";
-var includepath = outpath + "/include";
+var includepath = outpath + "/html/include";
 let absoluteOutPath = pathmanage.resolve(outpath)
 var srcpath = src + "/doc/src";
-
-if (!fs.existsSync(indexPath)) {
-    fs.mkdirSync(indexPath);
-}
 
 if (fs.lstatSync(indexPath).isDirectory()) {
     indexPath = indexPath + "/index.json";
@@ -74,16 +70,20 @@ function makeDirs() {
         fs.mkdirSync(outpath);
     }
 
-    if (!fs.existsSync(includepath)) {
-        fs.mkdirSync(includepath);
-    }
-
     if (!fs.existsSync(outpath + "/md")) {
         fs.mkdirSync(outpath + "/md");
     }
 
     if (!fs.existsSync(outpath + "/html")) {
         fs.mkdirSync(outpath + "/html");
+    }
+
+    if (!fs.existsSync(includepath)) {
+        fs.mkdirSync(includepath);
+    }
+
+    if (!fs.existsSync(indexPath)) {
+        fs.mkdirSync(indexPath);
     }
 }
 

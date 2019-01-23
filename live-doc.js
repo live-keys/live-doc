@@ -2,7 +2,7 @@ let marked = require('marked')
 let pathmanage = require('path')
 var fs = require('fs');
 
-[isArray, isObject, cleanUrl] = require("./utils.js");
+[isArray, isObject, cleanUrl, generateFileName, generateAbsolutePath] = require("./utils.js");
 
 [
     src,
@@ -69,12 +69,15 @@ function resolveMarkDown() {
         'titles': [],
         'resolvedLink': [],
         'relativePath': '',
+
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
 
     var mdabsolutepath = parentDir + '/' + mdpath
-    var htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
+
+    // FIXME (if plugin, lib, other)
+    var htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + htmlabsolutepath)
@@ -97,6 +100,10 @@ function resolveMarkDown() {
         if (type === 'plugin') {
             renderer.currentPlugin = value
             renderer.indexCollector[value] = []
+
+            // var htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name);
+
+
             return ''
         } else if (type === 'qmlType') {
             renderer.currentType = {
@@ -137,6 +144,8 @@ function resolveMarkDown() {
         return ''
     }
 
+
+
     renderer.currentPlugin = ''
     renderer.currentType = ''
     renderer.indexCollector = {}
@@ -167,8 +176,8 @@ function resolveMarkDown() {
         if (href.indexOf(".md") > 0) {
             let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
 
-            if (!currentFilePath)
-                console.log(htmlabsolutepath.split("doc/output/html/"))
+            // if (!currentFilePath)
+            //     console.log(htmlabsolutepath.split("doc/output/html/"))
 
             currentFilePath = currentFilePath.split(".html")[0];
 
@@ -298,7 +307,7 @@ function resolveMarkDown() {
         return result;
     });
 
-    populateIndexTableForCurr(result.content);
+    populateIndexTableForCurr(result.content, result.resolvedLink);
 
     return result
 }
@@ -317,40 +326,52 @@ function addIndexList(list) {
         }
     }
     return result;
-}
 
-function addIndexTableToHtml() {
-    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html';
-    let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
-    contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
-    fs.writeFileSync(htmlabsolutepath, contentHtml)
-    return htmlabsolutepath;
+    function addIndexTableToHtml() {
+        let htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
+        let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
+        contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
+        fs.writeFileSync(htmlabsolutepath, contentHtml)
+        return htmlabsolutepath;
+    }
 }
 
 function classesTypesIndexTable(currHtml) {
-    let re = RegExp("\<code\>((class)|(Type))\<\/((code)|(Type))\>.+\<\/a\>", 'g');
-    let htmlabsolutepath = absoluteOutPath + '/html/' + pathmanage.parse(mdpath).name + '.html';
+    let re = RegExp("\<code\>((class)|(Type))\<\/(code)\>.+\<\/a\>", 'g');
+
+    let htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
 
     let result = '<div class="expandable">';
     let firstHr = true;
     while ((match = re.exec(currHtml)) != null) {
         let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
-        let text = match[0].replace(replaceRegex, '<a href="' + htmlabsolutepath + '$1">$2</a>');
-        result += ((firstHr ? "" : "<hr>") + text);
+        let linkAndName = replaceRegex.exec(match[0]);
+        let text = '<a href="' + htmlabsolutepath + createAnchor(linkAndName[1]) + '">' + linkAndName[2] + '</a>'
+        result += ((firstHr ? "" : " < hr > ") + text);
         firstHr = true;
     }
+
     result += "</div>";
+
+    function createAnchor(path) {
+        return "#" + path.substring(path.indexOf("%23") + "%23".length);
+    }
 
     return result;
 }
 
-function putClassesAndTypes(indexHTML, currentPageHtml) {
-    let htmlabsolutepath = absoluteOutPath + "/html/" + pathmanage.parse(mdpath).name + '.html'
+function putClassesAndTypes(indexHTML, currentPageHtml, htmlabsolutepath) {
     let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
 
-    var re = RegExp("\'[^']*>>\'", 'g');
+    var re = RegExp("\'[^']*\>\>\'", 'g');
+
     while ((match = re.exec(indexHTML)) != null) {
-        if (match[0].indexOf(currentFilePath) > 0) {
+        let matchFile = match[0];
+
+
+        matchFile = generateFileName(pathmanage.parse(matchFile).name, pathmanage.parse(matchFile).dir);
+
+        if (matchFile == currentFilePath) {
             let i;
             for (i = match.index; indexHTML[i] != '<'; i--);
             start = i;
@@ -393,9 +414,10 @@ function printTableLevel(level, num) {
                     if (level[key].indexOf(">>") > 0) {
                         level[key] = level[key].replace(new RegExp("md", 'g'), "html");
                     }
+
                     result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                 } else {
-                    result += "<a href='" + level[key] + "'>" + key + "</a>";
+                    result += "<a href='" + generateAbsolutePath(absoluteOutPath, pathmanage.parse(level[key]).name, level[key]) + "'>" + key + "</a>";
                 }
                 result += "</div>";
             }
@@ -417,16 +439,16 @@ function initiateIndexList() {
     return result;
 }
 
-function populateIndexTableForCurr(currentPageHtml) {
+function populateIndexTableForCurr(currentPageHtml, htmlabsolutepath) {
     skipFirstHr = true;
     let indexTableHTML
     if (fs.existsSync(indexTablePath)) {
-        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml);
+        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml, htmlabsolutepath);
     } else {
         // fs.openSync(indexTablePath, 'w');
         // fs.writeFileSync(indexTablePath, "")
         indexTableHTML = initiateIndexList();
-        indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml);
+        indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml, htmlabsolutepath);
     }
     fs.writeFileSync(indexTablePath, indexTableHTML);
 }
