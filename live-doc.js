@@ -19,8 +19,8 @@ var fs = require('fs');
     IndexList
 ] = require("./init.js")
 
-// require("./run_doxygen.js");
-// require("./run_moxygen.js");
+require("./run_doxygen.js");
+require("./run_moxygen.js");
 
 var mdpath;
 
@@ -76,7 +76,6 @@ function resolveMarkDown() {
 
     var mdabsolutepath = parentDir + '/' + mdpath
 
-    // FIXME (if plugin, lib, other)
     var htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
@@ -244,10 +243,6 @@ function resolveMarkDown() {
     function mdToHTML(htmlabsolutepath, href, anchor) {
         if (href.indexOf(".md") > 0) {
             let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
-
-            // if (!currentFilePath)
-            //     console.log(htmlabsolutepath.split("doc/output/html/"))
-
             currentFilePath = currentFilePath.split(".html")[0];
 
             let hrefFilePath = href.split("doc/output/md/")[1];
@@ -298,14 +293,11 @@ function resolveMarkDown() {
             var cls = plugin[i]
             if (cls.path === pluginPath + '.' + requiredType) {
                 if (cls.inherits.length > 0) {
-                    // TODO CHECK IF IT IS FINE
-                    // result += `<table><tr><td><code>Inherits</code><code><a href="${generateAbsolutePath(absoluteOutPath, cls.inherits).replace(".","/")}">${cls.inherits}</a></code></td><td><!-----inheritbrief-----></td></tr></table>\n`
                     result += `<table><tr><td><code>Inherits</code><code><a href="${generateAbsolutePath(absoluteOutPath, cls.inherits[0]).replace(".","/")}">${cls.inherits[0]}</a></code></td><td>${cls.inherits[1]}</td></tr></table>\n`
                 }
                 if (cls.enums.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.enums.length; ++j) {
-                        // result += '<tr><td><code>Enum</code><code><a href="#' + (cls.enums[j]) + '">' + cls.enums[j] + '</a></code></td><td><!-----enumbrief-----></td></tr>'
                         result += '<tr><td><code>Enum</code><code><a href="#' + (cls.enums[j][0]) + '">' + cls.enums[j][0] + '</a></code></td><td>' + cls.enums[j][1] + '</td></tr>'
                     }
                     result += '</table>\n'
@@ -313,7 +305,6 @@ function resolveMarkDown() {
                 if (cls.properties.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.properties.length; ++j) {
-                        // result += '<tr><td><code>Property</code><code><a href="#' + (cls.properties[j]).split(" ").join("%20") + '">' + cls.properties[j] + '</a></code></td><td><!-----propertybrief-----></td></tr>'
                         result += '<tr><td><code>Property</code><code><a href="#' + (cls.properties[j][0]).split(" ").join("%20") + '">' + cls.properties[j][0] + '</a></code></td><td>' + cls.properties[j][1] + '</td></tr>'
                     }
                     result += '</table>\n'
@@ -321,7 +312,6 @@ function resolveMarkDown() {
                 if (cls.methods.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.methods.length; ++j) {
-                        // result += '<tr><td><code>Method</code><code><a href="#' + (cls.methods[j]).split(" ").join("%20") + '">' + cls.methods[j] + '</a></code></td><td><!-----methodbrief-----></td></tr>'
                         result += '<tr><td><code>Method</code><code><a href="#' + (cls.methods[j][0]).split(" ").join("%20") + '">' + cls.methods[j][0] + '</a></code></td><td>' + cls.methods[j][1] + '</td></tr>'
                     }
                     result += '</table>\n'
@@ -329,7 +319,6 @@ function resolveMarkDown() {
                 if (cls.signals.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.signals.length; ++j) {
-                        // result += '<tr><code>Signal</code><td><code><a href="#' + (cls.signals[j]).split(" ").join("%20").replace("(", "%28").replace(")", "%29") + '">' + cls.signals[j] + '</a></code></td><td><!-----signalbrief-----></td></tr>'
                         result += '<tr><code>Signal</code><td><code><a href="#' + (cls.signals[j][0]).split(" ").join("%20").replace("(", "%28").replace(")", "%29") + '">' + cls.signals[j][0] + '</a></code></td><td>' + cls.signals[j][1] + '</td></tr>'
                     }
                     result += '</table>\n'
@@ -368,22 +357,13 @@ function addIndexList(list) {
     }
 }
 
-// todo remove print (debuging)
-// function classesTypesIndexTable(currHtml, print = false) {
 function classesTypesIndexTable(currHtml) {
     let re = RegExp("\<code\>((class)|(Type))\<\/(code)\>((?!\<\/a\>).)*\<\/a\>", 'g');
-
-    // <code>Type</code><a href="/Users/hrimthusar/Desktop/Projects/livecv/doc/output/html/plugin_lcvcore.html#MatView"><code>MatView</code></a>
-    // <code>class</code><a href="/Users/hrimthusar/Desktop/Projects/livecv/doc/output/md/lveditqmljs-cpp.md%23classlv_1_1CodeQmlHandler"><code>lv::CodeQmlHandler</code></a>
-    //< a href = "/Users/hrimthusar/Desktop/Projects/livecv/doc/output/html/plugin_lcvimgproc.html#sers/hrimthusar/Desktop/Projects/livecv/doc/output/html/plugin_lcvimgproc.html#Canny" > Canny < /a>
-
     let htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
 
     let result = '<div class="expandable">';
     let firstHr = true;
     while ((match = re.exec(currHtml)) != null) {
-        // if (print)
-        //     console.log("@@@@@@@@@@ " + match[0]);
         let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
         let linkAndName = replaceRegex.exec(match[0]);
 
@@ -391,11 +371,6 @@ function classesTypesIndexTable(currHtml) {
             continue;
 
         linkAndName[1] = linkAndName[1].replace("#", "%23");
-
-        console.log("######## ");
-        console.log("# " + htmlabsolutepath);
-        console.log("# " + linkAndName[1]);
-        console.log("# " + linkAndName[2]);
 
         if (linkAndName == null)
             continue;
@@ -422,7 +397,6 @@ function putClassesAndTypes(indexHTML, currentPageHtml, htmlabsolutepath) {
         let matchFile = match[0];
 
         matchFile = generateFileName(pathmanage.parse(matchFile).name, pathmanage.parse(matchFile).dir);
-        // console.log(matchFile);
 
         if (matchFile == currentFilePath) {
             let i;
@@ -432,13 +406,6 @@ function putClassesAndTypes(indexHTML, currentPageHtml, htmlabsolutepath) {
             for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
             end = i + 3;
 
-            // todo remove (debuging)
-            // if (match[0].indexOf("lcvcore") > 0) {
-            //     console.log("###### " + match[0]);
-            //     console.log(currentPageHtml);
-            // console.log(classesTypesIndexTable(currentPageHtml));
-            // indexHTML = indexHTML.substring(0, end) + classesTypesIndexTable(currentPageHtml, true) + indexHTML.substring(end);
-            // } else
             indexHTML = indexHTML.substring(0, start) + classesTypesIndexTable(currentPageHtml) + indexHTML.substring(end);
         }
     }
@@ -456,6 +423,7 @@ function printTableLevel(level, num) {
             else
                 result += "<hr>";
             result += "<div class='level-" + num + "'>";
+            top = false;
             result += level;
             result += "</div>";
 
@@ -464,6 +432,7 @@ function printTableLevel(level, num) {
         for (var key in level) {
             if (isObject(level[key]) || isArray(level[key])) {
                 result += printTableLevel(level[key], num + 1);
+
             } else {
                 if (skipFirstHr)
                     skipFirstHr = false;
@@ -509,8 +478,6 @@ function populateIndexTableForCurr(currentPageHtml, htmlabsolutepath) {
     if (fs.existsSync(indexTablePath)) {
         indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml, htmlabsolutepath);
     } else {
-        // fs.openSync(indexTablePath, 'w');
-        // fs.writeFileSync(indexTablePath, "")
         indexTableHTML = initiateIndexList();
         indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml, htmlabsolutepath);
     }
