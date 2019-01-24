@@ -43,7 +43,7 @@ function generateDefaultFileName(name) {
 }
 
 function generateFileName(name, mdpath) {
-    if (mdpath.indexOf("/plugins/") > 0)
+    if (mdpath && mdpath.indexOf("/plugins/") > 0)
         return generatePluginFileName(name);
     if (name.indexOf("-cpp") > 0)
         return generateLibFileName(name);
