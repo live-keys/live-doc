@@ -19,8 +19,8 @@ var fs = require('fs');
     IndexList
 ] = require("./init.js")
 
-require("./run_doxygen.js");
-require("./run_moxygen.js");
+// require("./run_doxygen.js");
+// require("./run_moxygen.js");
 
 var mdpath;
 
@@ -76,12 +76,13 @@ function resolveMarkDown() {
 
     var mdabsolutepath = parentDir + '/' + mdpath
 
-    var htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
+    var fileName = generateFileName(pathmanage.parse(mdpath).name, mdpath);
+    var absolutefilepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
-    console.log("   To -->: " + htmlabsolutepath)
+    console.log("   To -->: " + absolutefilepath)
 
-    result.resolvedLink = htmlabsolutepath
+    result.resolvedLink = absolutefilepath
 
     var slpos = mdabsolutepath.lastIndexOf('#')
     if (slpos !== -1) {
@@ -200,7 +201,7 @@ function resolveMarkDown() {
 
     renderer.link = function (href, title, text) {
         let anchor = false;
-        [href, anchor] = mdToHTML(htmlabsolutepath, href, anchor);
+        [href, anchor] = mdToHTML(fileName, href, anchor);
         [href, anchor] = localAnchorLink(href, anchor);
 
         href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
@@ -240,9 +241,8 @@ function resolveMarkDown() {
         return '<h' + level + ' id="' + id + '">' + text + '</h' + level + '>\n';
     };
 
-    function mdToHTML(htmlabsolutepath, href, anchor) {
+    function mdToHTML(currentFilePath, href, anchor) {
         if (href.indexOf(".md") > 0) {
-            let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
             currentFilePath = currentFilePath.split(".html")[0];
 
             let hrefFilePath = href.split("doc/output/md/")[1];
@@ -278,7 +278,7 @@ function resolveMarkDown() {
         var plugin = renderer.indexCollector[contents]
         for (var i = 0; i < plugin.length; ++i) {
             var cls = plugin[i]
-            result += '<tr><td><code>Type</code><a href="' + generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath, [true, "#" + cls.name]) + '"><code>' + cls.name + '</code></a></td><td>' + cls.brief + '</td></tr>'
+            result += '<tr><td><code>Type</code><a href="' + generateFileName(pathmanage.parse(mdpath).name, mdpath, [true, "#" + cls.name]) + '"><code>' + cls.name + '</code></a></td><td>' + cls.brief + '</td></tr>'
         }
         return result + '</table>';
     })
@@ -293,7 +293,11 @@ function resolveMarkDown() {
             var cls = plugin[i]
             if (cls.path === pluginPath + '.' + requiredType) {
                 if (cls.inherits.length > 0) {
-                    result += `<table><tr><td><code>Inherits</code><code><a href="${generateAbsolutePath(absoluteOutPath, cls.inherits[0]).replace(".","/")}">${cls.inherits[0]}</a></code></td><td>${cls.inherits[1]}</td></tr></table>\n`
+                    let link = cls.inherits[0];
+                    link = link.replace('.', '/')
+                    link = link.split("#");
+                    link = link[0] + ".html" + (link[1] ? link[1] : '');
+                    result += `<table><tr><td><code>Inherits</code><code><a href="${link}">${cls.inherits[0]}</a></code></td><td>${cls.inherits[1]}</td></tr></table>\n`
                 }
                 if (cls.enums.length > 0) {
                     result += '<table>'
@@ -328,7 +332,8 @@ function resolveMarkDown() {
         return result;
     });
 
-    populateIndexTableForCurr(result.content, result.resolvedLink);
+    populateIndexTableForCurr(result.content, fileName);
+    // 
 
     return result
 }
@@ -359,27 +364,32 @@ function addIndexList(list) {
 
 function classesTypesIndexTable(currHtml) {
     let re = RegExp("\<code\>((class)|(Type))\<\/(code)\>((?!\<\/a\>).)*\<\/a\>", 'g');
-    let htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
+    let filepath = generateFileName(pathmanage.parse(mdpath).name, mdpath);
 
     let result = '<div class="expandable">';
+    result += '<div class="expandable-data hidden">';
     let firstHr = true;
     while ((match = re.exec(currHtml)) != null) {
+
         let replaceRegex = RegExp('^.*\"(.*)\".*\<code\>(.*)\<\/a\>$');
         let linkAndName = replaceRegex.exec(match[0]);
 
         if (!linkAndName)
             continue;
 
+        // console.log("##### " + linkAndName[1]);
+
         linkAndName[1] = linkAndName[1].replace("#", "%23");
 
         if (linkAndName == null)
             continue;
-        let text = '<a href="' + htmlabsolutepath + createAnchor(linkAndName[1]) + '">' + linkAndName[2] + '</a>'
+        let text = '<a href="' + filepath + createAnchor(linkAndName[1]) + '">' + linkAndName[2] + '</a>'
         result += ((firstHr ? "" : " < hr > ") + text);
         firstHr = true;
     }
-
-    result += "</div>";
+    result += "</div>"; //expandable-data
+    result += "<div class='expandable-button'>Show more...</div>";
+    result += "</div>"; //expandable
 
     function createAnchor(path) {
         return "#" + path.substring(path.indexOf("%23") + "%23".length);
@@ -388,17 +398,36 @@ function classesTypesIndexTable(currHtml) {
     return result;
 }
 
-function putClassesAndTypes(indexHTML, currentPageHtml, htmlabsolutepath) {
-    let currentFilePath = htmlabsolutepath.split("doc/output/html/")[1];
+function putClassesAndTypes(indexHTML, currentPageHtml, currentFilePath) {
+
+    // console.log("######## " + filepath)
+
+    // let currentFilePath = filepath.split("doc/output/html/")[1];
+
 
     var re = RegExp("\'[^']*\>\>\'", 'g');
 
     while ((match = re.exec(indexHTML)) != null) {
         let matchFile = match[0];
+        matchFile = matchFile.split("../");
+        matchFile = "/" + matchFile[matchFile.length - 1]; // removes ../../
+        matchFile = matchFile.substring(0, matchFile.length - 3); // removes >>
+        matchFile = matchFile.replace("'", '');
 
-        matchFile = generateFileName(pathmanage.parse(matchFile).name, pathmanage.parse(matchFile).dir);
+        // if (matchFile.indexOf("lcveditor") > 0) {
+        //     console.log("######## " + matchFile)
+        //     console.log("@@@@@@@@ " + pathmanage.parse(matchFile).name)
+        // }
+        matchFile = generateFileName(pathmanage.parse(matchFile).name, matchFile);
+        // if (matchFile.indexOf("lcveditor") > 0) {
+        //     console.log("@@@@@@@@ " + matchFile)
+        // }
 
+        if (currentFilePath.indexOf("lcveditor") > 0)
+            console.log("( " + matchFile + " " + currentFilePath + " )");
         if (matchFile == currentFilePath) {
+
+
             let i;
             for (i = match.index; indexHTML[i] != '<'; i--);
             start = i;
@@ -445,7 +474,7 @@ function printTableLevel(level, num) {
                     }
                     result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
                 } else {
-                    let link = generateAbsolutePath(absoluteOutPath,
+                    let link = generateFileName(
                         pathmanage.parse(level[key]).name,
                         level[key], [level[key].indexOf("#") > 0,
                             level[key].substring(level[key].indexOf("#"))
@@ -472,14 +501,14 @@ function initiateIndexList() {
     return result;
 }
 
-function populateIndexTableForCurr(currentPageHtml, htmlabsolutepath) {
+function populateIndexTableForCurr(currentPageHtml, filepath) {
     skipFirstHr = true;
     let indexTableHTML
     if (fs.existsSync(indexTablePath)) {
-        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml, htmlabsolutepath);
+        indexTableHTML = putClassesAndTypes(fs.readFileSync(indexTablePath, "utf-8"), currentPageHtml, filepath);
     } else {
         indexTableHTML = initiateIndexList();
-        indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml, htmlabsolutepath);
+        indexTableHTML = putClassesAndTypes(indexTableHTML, currentPageHtml, filepath);
     }
     fs.writeFileSync(indexTablePath, indexTableHTML);
 }

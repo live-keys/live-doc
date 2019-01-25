@@ -42,18 +42,18 @@ function generateDefaultFileName(name) {
     return name + ".html";
 }
 
-function generateFileName(name, mdpath) {
-    if (mdpath && mdpath.indexOf("/plugins/") > 0)
-        return generatePluginFileName(name);
+function generateFileName(name, mdpath = undefined, anchor = [false, ""]) {
+    if (mdpath && mdpath.indexOf("/plugins/") > -1)
+        return generatePluginFileName(name) + (anchor[0] ? anchor[1] : "");
     if (name.indexOf("-cpp") > 0)
-        return generateLibFileName(name);
-    return generateDefaultFileName(name);
+        return generateLibFileName(name) + (anchor[0] ? anchor[1] : "");
+    return generateDefaultFileName(name) + (anchor[0] ? anchor[1] : "");
 }
 
-function generateAbsolutePath(absoluteOutPath, name, mdpath, anchor = [false, ""]) {
+function generateAbsolutePath(absoluteOutPath, name, mdpath) {
     // anchor[0] -> true/false
     // anchor[1] -> #anchor
-    return absoluteOutPath + "/html/" + generateFileName(name, mdpath) + (anchor[0] ? anchor[1] : "");
+    return absoluteOutPath + "/html/" + generateFileName(name, mdpath);
 }
 
 module.exports = [
