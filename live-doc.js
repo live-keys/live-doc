@@ -19,8 +19,8 @@ var fs = require('fs');
     IndexList
 ] = require("./init.js")
 
-// require("./run_doxygen.js");
-// require("./run_moxygen.js");
+require("./run_doxygen.js");
+require("./run_moxygen.js");
 
 var mdpath;
 

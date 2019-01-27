@@ -8,7 +8,8 @@
     "jquery": "^3.3.1",
     "marked": "^0.5.2",
     "moxygen": "^0.7.12",
-    "npm": "^6.6.0"
+    "npm": "^6.6.0",
+    "ncp": "^2.0.0"
   },
   "devDependencies": {},
   "scripts": {

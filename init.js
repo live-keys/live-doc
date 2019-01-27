@@ -1,6 +1,7 @@
 let pathmanage = require('path');
 var fs = require('fs');
 var child_process = require('child_process');
+var ncp = require('ncp').ncp
 
 
 var args = process.argv.slice(2);
@@ -12,6 +13,7 @@ if (args.length !== 1) {
 var src = pathmanage.resolve(args[0]);
 var indexPath = src + "/doc/pages";
 var outpath = src + "/doc/output";
+var htmloutpath = outpath + "/html";
 var includepath = outpath + "/html/include";
 let absoluteOutPath = pathmanage.resolve(outpath)
 var srcpath = src + "/doc/src";
@@ -87,10 +89,24 @@ function makeDirs() {
     }
 }
 
-function copyInclude() {
-    let bootstrapCopyCmd = "cp -r " + __dirname + "/node_modules/bootstrap " + includepath + "/bootstrap";
-    let jqueryCopyCmd = "cp -r " + __dirname + "/node_modules/jquery " + includepath + "/jquery";
+function copyInclude(){
+    ncp.limit = 16;
 
-    child_process.execSync(bootstrapCopyCmd);
-    child_process.execSync(jqueryCopyCmd);
+    ncp(__dirname + "/node_modules/bootstrap", includepath + "/bootstrap", function (err) {
+        if (err) {
+            return console.error(err);
+        }
+    })
+
+    ncp(__dirname + "/node_modules/jquery", includepath + "/jquery", function (err) {
+        if (err) {
+            return console.error(err);
+        }
+    })
+
+    ncp(srcpath + "/images", htmloutpath + "/images", function (err) {
+        if (err) {
+            return console.error(err);
+        }
+    })
 }
