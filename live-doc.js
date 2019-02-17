@@ -207,16 +207,18 @@ function resolveMarkDown() {
     };
 
     renderer.link = function (href, title, text) {
+
         let anchor = false;
-        [href, anchor] = mdToHTML(fileName, href, anchor);
-        [href, anchor] = localAnchorLink(href, anchor);
+        href = mdToHTML(fileName, href, anchor)
+        // [href, anchor] = mdToHTML(fileName, href, anchor);
+        // [href, anchor] = localAnchorLink(href, anchor);
 
         href = cleanUrl(this.options.sanitize, this.options.baseUrl, href);
         if (href === null) {
             return text;
         }
 
-        var out = '<a href="' + (anchor ? "#" : "") + escape(href) + '"';
+        var out = '<a href="' + href + '"';
         if (title) {
             out += ' title="' + title + '"';
         }
@@ -249,19 +251,29 @@ function resolveMarkDown() {
     };
 
     function mdToHTML(currentFilePath, href, anchor) {
-        if (href.indexOf(".md") > 0) {
-            currentFilePath = currentFilePath.split(".html")[0];
+    //     if (href.indexOf(".md") > 0) {
+    //         currentFilePath = currentFilePath.split(".html")[0];
 
-            let hrefFilePath = href.split("doc/output/md/")[1];
-            if (hrefFilePath == undefined)
-                return [href, anchor];
-            hrefFilePath = hrefFilePath.split(".md#");
-            if (hrefFilePath[0] === currentFilePath) {
-                href = hrefFilePath[1];
-                anchor = true;
-            }
+    //         let hrefFilePath = href.split("doc/output/md/")[1];
+    //         if (hrefFilePath == undefined)
+    //             return [href, anchor];
+    //         hrefFilePath = hrefFilePath.split(".md#");
+    //         if (hrefFilePath[0] === currentFilePath) {
+    //             href = hrefFilePath[1];
+    //             anchor = true;
+    //         }
+    //     }
+
+        var cppindex = href.indexOf('-cpp.md')
+        if ( cppindex > 0 ){
+            var res = "lib_" + href.substring(0, cppindex) + ".html" + href.substring(cppindex + 7)
+            return res
         }
-        return [href, anchor];
+
+        href = href.replace('.md', '.html')
+        // console.log(href)
+        return href;
+        // return [href, anchor];
     }
 
     function localAnchorLink(href, anchor) {

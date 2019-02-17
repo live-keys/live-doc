@@ -18,14 +18,13 @@ class DocParser{
                         DocParser.externals[namespace.substring(9).replace('.', '-') + '-' + type] = ''
                         return `<a href="external.html#${namespace.substring(9).replace('.', '-') + '-' + type}">${type}</a>`
                     }
-                        
 
                     if ( namespace !== "" && type !== "" )
                         return `<a href="plugin_${namespace.replace('.', '-') + '.html#' + type}">${type}</a>`
                 }
                 return value
             })
-            
+
         return segments.join(' ')
     }
 

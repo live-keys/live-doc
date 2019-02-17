@@ -7,6 +7,7 @@ function isObject(what) {
 }
 
 function cleanUrl(sanitize, base, href) {
+    // console.log(href)
     if (sanitize) {
         try {
             var prot = decodeURIComponent(unescape(href))
@@ -27,6 +28,9 @@ function cleanUrl(sanitize, base, href) {
     } catch (e) {
         return null;
     }
+
+    // console.log('  --> ' + href)
+
     return href;
 }
 
