@@ -1,5 +1,6 @@
 let marked = require('marked')
 let pathmanage = require('path')
+let docparser = require('./docparser')
 var fs = require('fs');
 
 [isArray, isObject, cleanUrl, generateFileName, generateAbsolutePath] = require("./utils.js");
@@ -16,16 +17,22 @@ var fs = require('fs');
     obj,
     IndexTitle,
     IndexLink,
-    IndexList
+    IndexList,
+    options,
+    paths
 ] = require("./init.js")
 
+if ( !options.disableDoxygen )
 require("./run_doxygen.js");
-require("./run_moxygen.js");
+
+if ( !options.disableMoxygen )
+    require("./run_moxygen.js");
 
 var mdpath;
 
 resolveList(obj);
 addIndexList(obj)
+docparser.exportExternals(outpath + '/externals.json')
 
 console.log("\nDone")
 
@@ -77,7 +84,7 @@ function resolveMarkDown() {
     var mdabsolutepath = parentDir + '/' + mdpath
 
     var fileName = generateFileName(pathmanage.parse(mdpath).name, mdpath);
-    var absolutefilepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
+    var absolutefilepath = generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + absolutefilepath)
@@ -294,10 +301,7 @@ function resolveMarkDown() {
             if (cls.path === pluginPath + '.' + requiredType) {
                 if (cls.inherits.length > 0) {
                     let link = cls.inherits[0];
-                    link = link.replace('.', '/')
-                    link = link.split("#");
-                    link = link[0] + ".html" + (link[1] ? link[1] : '');
-                    result += `<table><tr><td><code>Inherits</code><code><a href="${link}">${cls.inherits[0]}</a></code></td><td>${cls.inherits[1]}</td></tr></table>\n`
+                    result += `<table><tr><td><code>Inherits</code><code>${docparser.typesToLink(link)}</code></td><td>${cls.inherits[1]}</td></tr></table>\n`
                 }
                 if (cls.enums.length > 0) {
                     result += '<table>'
@@ -354,7 +358,7 @@ function addIndexList(list) {
     return result;
 
     function addIndexTableToHtml() {
-        let htmlabsolutepath = generateAbsolutePath(absoluteOutPath, pathmanage.parse(mdpath).name, mdpath);
+        let htmlabsolutepath = generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
         let contentHtml = fs.readFileSync(htmlabsolutepath, "utf-8");
         contentHtml = contentHtml.replace("%indexList%", fs.readFileSync(indexTablePath))
         fs.writeFileSync(htmlabsolutepath, contentHtml)

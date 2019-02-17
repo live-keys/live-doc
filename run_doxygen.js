@@ -9,6 +9,3 @@ child_process.execSync("doxygen Doxyfile", {
 });
 
 console.log("\nDoxygen done");
-
-console.log("\nExecuting moxygen in " + outpath);
-console.log("-----------------------------------------------------------\n");

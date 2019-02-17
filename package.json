@@ -9,7 +9,9 @@
     "marked": "^0.5.2",
     "moxygen": "^0.7.12",
     "npm": "^6.6.0",
-    "ncp": "^2.0.0"
+    "ncp": "^2.0.0",
+    "perfect-scrollbar": "^1.4.0",
+    "argparse": "^1.0.10"
   },
   "devDependencies": {},
   "scripts": {

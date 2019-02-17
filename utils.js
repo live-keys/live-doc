@@ -53,7 +53,7 @@ function generateFileName(name, mdpath = undefined, anchor = [false, ""]) {
 function generateAbsolutePath(absoluteOutPath, name, mdpath) {
     // anchor[0] -> true/false
     // anchor[1] -> #anchor
-    return absoluteOutPath + "/html/" + generateFileName(name, mdpath);
+    return absoluteOutPath + "/" + generateFileName(name, mdpath);
 }
 
 module.exports = [

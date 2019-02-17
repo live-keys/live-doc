@@ -2,19 +2,76 @@ let pathmanage = require('path');
 var fs = require('fs');
 var child_process = require('child_process');
 var ncp = require('ncp').ncp
+var ArgumentParser = require('argparse').ArgumentParser;
 
+var parser = new ArgumentParser({
+    version: '0.0.1',
+    addHelp:true,
+    description: 'LiveKeys documentation generator.'
+});
 
-var args = process.argv.slice(2);
+parser.addArgument(
+    ['-m', '--disable-moxygen'],
+    {
+        help: 'Disable running moxygen.',
+        action: 'storeTrue'
+    }
+)
+parser.addArgument(
+    ['-d', '--disable-doxygen'],
+    {
+        help: 'Disable running doxygen.',
+        action: 'storeTrue'
+    }
+)
+parser.addArgument(
+    ['--template-file'],
+    {
+        help: 'Set template file. Default is in source/doc/src/template.tpl.html',
+        nargs: 1
+    }
+)
+parser.addArgument(
+    ['--output-path'],
+    {
+        help: 'Set the output path. Default is in source/doc/output',
+        nargs: 1
+    }
+)
+parser.addArgument(
+    ['source-path'],
+    {
+        nargs : 1,
+        help: "Path to source code."
+    }
+)
 
-if (args.length !== 1) {
-    throw new Error("Invalid arugment count. Usage: live-doc <path_to_livecv_src>")
+var args;
+args = parser.parseArgs();
+
+var src = pathmanage.resolve(args['source-path'][0])
+var output = args['output_path'] ? pathmanage.resolve(args['output_path'][0]) : src + '/doc/output/html'
+
+var options = {
+    disableMoxygen : args['disable_moxygen'] ? true : false,
+    disableDoxygen : args['disable_doxygen'] ? true : false
+};
+
+var paths = {
+    source : src,
+    sourceDoc : src + '/doc',
+    sourceDocCode : src + '/doc/src',
+    sourceDocPages : src + '/doc/pages',
+    templateFile : args['template_file'] ? args['template_file'][0] : src + "/doc/src/template.tpl.html",
+    outputPath : src + '/doc/output',
+    htmlOutputPath : output,
+    htmlOutputIncludePath : output + '/include'
 }
 
-var src = pathmanage.resolve(args[0]);
 var indexPath = src + "/doc/pages";
-var outpath = src + "/doc/output";
-var htmloutpath = outpath + "/html";
-var includepath = outpath + "/html/include";
+var outpath = paths.outputPath;
+var htmloutpath = paths.htmlOutputPath;
+var includepath = paths.htmlOutputIncludePath;
 let absoluteOutPath = pathmanage.resolve(outpath)
 var srcpath = src + "/doc/src";
 
@@ -28,7 +85,7 @@ if (!fs.lstatSync(src).isDirectory()) {
 makeDirs();
 copyInclude();
 
-var templateHtmlPath = srcpath + '/template.tpl.html'
+var templateHtmlPath = paths.templateFile
 var templateHtml = fs.readFileSync(templateHtmlPath, 'utf8')
 
 var indexTablePath = outpath + '/indexTable.html'
@@ -64,7 +121,9 @@ module.exports = [src,
     obj,
     IndexTitle,
     IndexLink,
-    IndexList
+    IndexList,
+    options,
+    paths
 ]
 
 function makeDirs() {
@@ -76,8 +135,8 @@ function makeDirs() {
         fs.mkdirSync(outpath + "/md");
     }
 
-    if (!fs.existsSync(outpath + "/html")) {
-        fs.mkdirSync(outpath + "/html");
+    if (!fs.existsSync(htmloutpath)) {
+        fs.mkdirSync(htmloutpath);
     }
 
     if (!fs.existsSync(includepath)) {
@@ -99,6 +158,12 @@ function copyInclude(){
     })
 
     ncp(__dirname + "/node_modules/jquery", includepath + "/jquery", function (err) {
+        if (err) {
+            return console.error(err);
+        }
+    })
+
+    ncp(__dirname + "/node_modules/perfect-scrollbar", includepath + "/perfect-scrollbar", function (err) {
         if (err) {
             return console.error(err);
         }
