@@ -28,6 +28,29 @@ class DocParser{
         return segments.join(' ')
     }
 
+    
+    static typeToUrl(type){
+        var value = type.trim()
+        var hashIndex = value.indexOf('#')
+
+        if ( hashIndex !== -1 ){
+            var namespace = value.substring(0, hashIndex)
+            var type      = value.substring(hashIndex + 1)
+
+            if ( namespace.startsWith("external.") && type !== "" ){
+                DocParser.externals = DocParser.externals ? DocParser.externals : {}
+                DocParser.externals[namespace.substring(9).replace('.', '-') + '-' + type] = ''
+                return `external.html#${namespace.substring(9).replace('.', '-') + '-' + type}`
+            }
+
+            if ( namespace !== "" && type !== "" )
+                return `plugin_${namespace.replace('.', '-') + '.html#' + type}`
+            }
+            return value
+        
+        return value
+    }
+
     static exportExternals(path){
         if ( DocParser.externals ){
             var json = JSON.stringify(DocParser.externals);

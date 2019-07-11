@@ -135,19 +135,19 @@ function resolveMarkDown() {
         } else if (type === 'qmlEnum') {
             renderer.currentType.enums.push([value, ""])
             renderer.currentType.lastAdded = type
-            return `<h4 id="${value}"><code>${value}</code> enum</h2>\n`
+            return `<h4 id="${renderer.currentType.name}-${value}"><code>${value}</code> enum</h2>\n`
         } else if (type === 'qmlProperty') {
             renderer.currentType.properties.push([value, ""])
             renderer.currentType.lastAdded = type
-            return `<h4 id="${value.split(" ").join("%20")}"><code>${value}</code> property</h2>\n`
+            return `<h4 id="${renderer.currentType.name}-${value.split(" ").pop()}"><code>${value}</code> property</h2>\n`
         } else if (type === 'qmlMethod') {
             renderer.currentType.methods.push([value, ""])
             renderer.currentType.lastAdded = type
-            return `<h4 id="${value}"><code>${value}</code> method</h2>\n`
+            return `<h4 id="${renderer.currentType.name}-${value}"><code>${value}</code> method</h2>\n`
         } else if (type === 'qmlSignal') {
             renderer.currentType.signals.push([value, ""])
             renderer.currentType.lastAdded = type
-            return `<h4 id="${value.split(" ").join("%20").replace("(", "%28").replace(")", "%29")}"><code>${value}</code> signal</h2>\n`
+            return `<h4 id="${renderer.currentType.name}-${value.split(" ").join("%20").replace("(", "%28").replace(")", "%29")}"><code>${value}</code> signal</h2>\n`
         } else if (type === 'qmlSummary') {
             return `<h2>Summary</h2>\n<!-----pluginsummary:${value}----->\n`
         }
@@ -158,9 +158,6 @@ function resolveMarkDown() {
     function setBrief(value, type) {
         if (type === 'qmlInherits') {
             let n = renderer.currentType.inherits.length;
-            // brief
-            renderer.currentType.inherits[1] = value;
-
         } else if (type === 'qmlEnum') {
             let n = renderer.currentType.enums.length;
             // brief
@@ -264,6 +261,10 @@ function resolveMarkDown() {
     //         }
     //     }
 
+        if ( href.startsWith('qml:') ){
+            return docparser.typeToUrl(href.substring(4))
+        }
+
         var cppindex = href.indexOf('-cpp.md')
         if ( cppindex > 0 ){
             var res = "lib_" + href.substring(0, cppindex) + ".html" + href.substring(cppindex + 7)
@@ -313,33 +314,33 @@ function resolveMarkDown() {
             if (cls.path === pluginPath + '.' + requiredType) {
                 if (cls.inherits.length > 0) {
                     let link = cls.inherits[0];
-                    result += `<table><tr><td><code>Inherits</code><code>${docparser.typesToLink(link)}</code></td><td>${cls.inherits[1]}</td></tr></table>\n`
+                    result += `<table><tr class="qml-type qml-index qml-inherits"><td><code>Inherits</code></td><td><code>${docparser.typesToLink(link)}</code></td></tr></table>\n`
                 }
                 if (cls.enums.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.enums.length; ++j) {
-                        result += '<tr><td><code>Enum</code><code><a href="#' + (cls.enums[j][0]) + '">' + cls.enums[j][0] + '</a></code></td><td>' + cls.enums[j][1] + '</td></tr>'
+                        result += '<tr class="qml-type qml-index qml-enum"><td><code>Enum</code></td><td><code><a href="#' + cls.name + '-' + (cls.enums[j][0]) + '">' + cls.enums[j][0] + '</a></code></td></tr>'
                     }
                     result += '</table>\n'
                 }
                 if (cls.properties.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.properties.length; ++j) {
-                        result += '<tr><td><code>Property</code><code><a href="#' + (cls.properties[j][0]).split(" ").join("%20") + '">' + cls.properties[j][0] + '</a></code></td><td>' + cls.properties[j][1] + '</td></tr>'
+                        result += '<tr class="qml-type qml-index qml-property"><td><code>Property</code></td><td><code><a href="#' + cls.name + '-' + (cls.properties[j][0]).split(" ").pop() + '">' + cls.properties[j][0] + '</a></code></td></tr>'
                     }
                     result += '</table>\n'
                 }
                 if (cls.methods.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.methods.length; ++j) {
-                        result += '<tr><td><code>Method</code><code><a href="#' + (cls.methods[j][0]).split(" ").join("%20") + '">' + cls.methods[j][0] + '</a></code></td><td>' + cls.methods[j][1] + '</td></tr>'
+                        result += '<tr class="qml-type qml-index qml-method"><td><code>Method</code></td><td><code><a href="#' + cls.name + '-' + (cls.methods[j][0]).split(" ").join("%20") + '">' + cls.methods[j][0] + '</a></code></td></tr>'
                     }
                     result += '</table>\n'
                 }
                 if (cls.signals.length > 0) {
                     result += '<table>'
                     for (var j = 0; j < cls.signals.length; ++j) {
-                        result += '<tr><code>Signal</code><td><code><a href="#' + (cls.signals[j][0]).split(" ").join("%20").replace("(", "%28").replace(")", "%29") + '">' + cls.signals[j][0] + '</a></code></td><td>' + cls.signals[j][1] + '</td></tr>'
+                        result += '<tr class="qml-type qml-index qml-signal"><td><code>Signal</code></td><td><code><a href="#' + cls.name + '-' + (cls.signals[j][0]).split(" ").join("%20").replace("(", "%28").replace(")", "%29") + '">' + cls.signals[j][0] + '</a></code></td></tr>'
                     }
                     result += '</table>\n'
                 }
