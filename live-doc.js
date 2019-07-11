@@ -23,18 +23,94 @@ var fs = require('fs');
 ] = require("./init.js")
 
 if ( !options.disableDoxygen )
-require("./run_doxygen.js");
+    require("./run_doxygen.js");
 
 if ( !options.disableMoxygen )
     require("./run_moxygen.js");
 
 var mdpath;
 
+class IndexTableNode{
+
+    constructor(){
+      this.link = '';
+      this.text = '';
+      this.expandsTo = '';
+      this.nested = false;
+      this.children = []
+    }
+
+    toStringIndent(indent){
+        if ( !indent )
+            indent = ''
+
+        var s = ''
+        if ( this.link !== '' ){
+            s = indent + 'LINK[' + this.link + ']:' + this.text + '\n';
+        } else {
+            s = indent + 'TEXT:' + this.text + '\n';
+        }
+
+        if ( this.nested ){
+            s += indent + '{\n'
+            for ( var i = 0; i < this.children.length; ++i ){
+                s += this.children[i].toStringIndent(indent + '  ')
+            }
+            s += indent + '}\n'
+        }
+        return s;
+    }
+
+    toString(){
+        return this.toStringIndent('')
+    }
+
+
+    toHtmlIndent(indent){
+        if ( !indent )
+            indent = ''
+
+        var s = ''
+
+        if ( this.text !== '' ){
+            s += indent + '<li>\n'
+            if ( this.link !== '' ){
+                s += indent + '  ' + (this.expandsTo !== '' ? '<a href="#" class="expand-link">+</a>' : '') + '<a class="index-link" href=\'' + this.link + '\'>' + this.text + '</a>\n';
+            } else {
+                s += indent + '  <span class="index-title">' + this.text + '</span>\n';
+            }
+            if ( this.expandsTo !== '' ){
+                s +=  indent + '  <a href=\'' + this.expandsTo + '\'>' + this.expandsTo + '</a>\n'
+            }
+        }
+
+        if ( this.nested ){
+            s += indent + '  <ul>\n'
+            for ( var i = 0; i < this.children.length; ++i ){
+                s += this.children[i].toHtmlIndent(indent + '    ')
+            }
+            s += indent + '  </ul>\n'
+        }
+
+        if ( this.text !== '' ){
+            s += indent + '</li>\n'
+        }
+        
+        return s;
+    }
+
+    toHtml(){
+        return this.toHtmlIndent('')
+    }
+}
+
 resolveList(obj);
 addIndexList(obj)
 docparser.exportExternals(outpath + '/externals.json')
 
 console.log("\nDone")
+
+
 
 function resolveList(list) {
     var result = new IndexList();
@@ -383,8 +459,7 @@ function classesTypesIndexTable(currHtml) {
     let re = RegExp("\<code\>((class)|(Type))\<\/(code)\>((?!\<\/a\>).)*\<\/a\>", 'g');
     let filepath = generateFileName(pathmanage.parse(mdpath).name, mdpath);
 
-    let result = '<div class="expandable">';
-    result += '<div class="expandable-data hidden">';
+    var result = '<ul class="expandable-data hidden">';
     let firstHr = true;
     while ((match = re.exec(currHtml)) != null) {
 
@@ -400,13 +475,11 @@ function classesTypesIndexTable(currHtml) {
 
         if (linkAndName == null)
             continue;
-        let text = '<a href="' + filepath + createAnchor(linkAndName[1]) + '">' + linkAndName[2] + '</a>'
+        let text = '<li><a href="' + filepath + createAnchor(linkAndName[1]) + '">' + linkAndName[2] + '</a></li>'
         result += ((firstHr ? "" : " < hr > ") + text);
         firstHr = true;
     }
-    result += "</div>"; //expandable-data
-    result += "<div class='expandable-button'>Show more...</div>";
-    result += "</div>"; //expandable
+    result += "</ul>\n"; //expandable-data
 
     function createAnchor(path) {
         return "#" + path.substring(path.indexOf("%23") + "%23".length);
@@ -443,13 +516,13 @@ function putClassesAndTypes(indexHTML, currentPageHtml, currentFilePath) {
         if (currentFilePath.indexOf("lcveditor") > 0)
             console.log("( " + matchFile + " " + currentFilePath + " )");
         if (matchFile == currentFilePath) {
-
-
             let i;
             for (i = match.index; indexHTML[i] != '<'; i--);
-            start = i;
 
+            start = i;
+            
             for (i = match.index + match[0].length + 1; indexHTML[i] != '\/' || indexHTML[i + 1] != 'a' || indexHTML[i + 2] != '>'; i++);
+
             end = i + 3;
 
             indexHTML = indexHTML.substring(0, start) + classesTypesIndexTable(currentPageHtml) + indexHTML.substring(end);
@@ -459,61 +532,80 @@ function putClassesAndTypes(indexHTML, currentPageHtml, currentFilePath) {
     return indexHTML;
 }
 
-function printTableLevel(level, num) {
-    let result = '';
-    if (typeof level === 'string' || level instanceof String) {
-        level = level.trim();
-        if (level != '') {
-            if (skipFirstHr)
-                skipFirstHr = false;
-            else
-                result += "<hr>";
-            result += "<div class='level-" + num + "'>";
-            top = false;
-            result += level;
-            result += "</div>";
+function captureIndexTable(jsonData, node){
+    if ( !isArray(jsonData) ){
+        throw new Error("Data not of array type: " + JSON.stringify(jsonData));
+    }
 
-        }
-    } else {
-        for (var key in level) {
-            if (isObject(level[key]) || isArray(level[key])) {
-                result += printTableLevel(level[key], num + 1);
+    var n = node ? node : new IndexTableNode();
+    n.nested = true;
 
-            } else {
-                if (skipFirstHr)
-                    skipFirstHr = false;
-                else
-                    result += "<hr>";
-                result += "<div class='level-" + num + "'>";
-                if (!isNaN(Number(key))) {
-                    if (level[key].indexOf(">>") > 0) {
-                        level[key] = level[key].replace(new RegExp("md", 'g'), "html");
-                    }
-                    result += "<a href='" + level[key] + "'>" + level[key] + "</a>";
+    var last = null;
+
+    for ( var i = 0; i < jsonData.length; ++i ){
+        var current = jsonData[i]
+        if (typeof current === 'string' || current instanceof String) {
+            current = current.trim();
+            if ( current === '' ){
+                throw new Error("Null text given at json node: " + JSON.stringify(jsonData));
+            }
+            var nestedN = new IndexTableNode();
+            nestedN.text = current
+            if (nestedN.text.indexOf(">>") > 0) {
+                nestedN.text = nestedN.text.replace(new RegExp("md", 'g'), "html");
+                nestedN.link = nestedN.text
+            }
+
+            n.children.push(nestedN);
+
+
+            last = nestedN;
+        } else if ( isObject(current) ){
+            for (var key in current) {
+                var nestedN = new IndexTableNode();
+                nestedN.link = generateFileName(
+                    pathmanage.parse(current[key]).name,
+                    current[key], [current[key].indexOf("#") > 0,
+                    current[key].substring(current[key].indexOf("#"))
+                ]);;
+                nestedN.text = key;
+
+                n.children.push(nestedN);
+
+                last = nestedN;
+            }
+
+        } else if ( isArray(current) ){
+            if ( last ){
+                if ( current.length === 1 && 
+                    (typeof current[0] === 'string' || current[0] instanceof String) 
+                    && current[0].endsWith('>>'))
+                {
+                    last.expandsTo = current[0].replace(new RegExp("md", 'g'), "html")
                 } else {
-                    let link = generateFileName(
-                        pathmanage.parse(level[key]).name,
-                        level[key], [level[key].indexOf("#") > 0,
-                            level[key].substring(level[key].indexOf("#"))
-                        ]);
-                    result += "<a href='" + link + "'>" + key + "</a>";
+                    last.nested = true
+                    captureIndexTable(current, last)
                 }
-                result += "</div>";
             }
         }
     }
 
-    return result;
+    return n;
+}
+
+function printTableLevel(level, num) {
+    var n = captureIndexTable(level)
+    return n.toHtml();
 }
 
 function initiateIndexList() {
     let indexJson = require(indexPath);
     let result = '';
 
-    for (var key in indexJson) {
-        let level = indexJson[key];
-        result += printTableLevel(level, 1);
-    }
+    result += printTableLevel(indexJson, 1);
+    // for (var key in indexJson) {
+    //     let level = indexJson[key];
+    // }
 
     return result;
 }
