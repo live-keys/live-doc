@@ -122,20 +122,39 @@ function resolveList(list) {
         } else if (typeof node === 'object' && node !== null) {
             var key = Object.keys(node)[0]
 
-            mdpath = node[key];
-            var resolvedMd = resolveMarkDown()
-
-            result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
-
-            var replacements = {
-                '%title%': key,
-                '%content%': resolvedMd.content
+            if ( key !== '__extra' ){
+                mdpath = node[key];
+                var resolvedMd = resolveMarkDown()
+                result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
+    
+                var replacements = {
+                    '%title%': key,
+                    '%content%': resolvedMd.content
+                }
+                var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
+                    return replacements[all] || all;
+                });
+    
+                fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
+            } else {
+                pathArray = node[key]
+                for ( var pi = 0; pi < pathArray.length; ++pi ){
+                    mdpath = pathArray[pi];
+                    var resolvedMd = resolveMarkDown(pathmanage.parse(mdpath).name + '.html')
+                    result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
+        
+                    var replacements = {
+                        '%title%': key,
+                        '%indexList%' : '<p></p>',
+                        '%content%': resolvedMd.content
+                    }
+                    var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
+                        return replacements[all] || all;
+                    });
+        
+                    fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
+                }
             }
-            var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
-                return replacements[all] || all;
-            });
-
-            fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
 
         } else if (typeof node === 'string' || node instanceof String) {
             result.data.push(new IndexTitle(node))
@@ -146,21 +165,20 @@ function resolveList(list) {
     return result;
 }
 
-function resolveMarkDown() {
+function resolveMarkDown(recommendedName) {
     var result = {
         'content': '',
         'titles': [],
         'resolvedLink': [],
-        'relativePath': '',
-
+        'relativePath': ''
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
 
     var mdabsolutepath = parentDir + '/' + mdpath
 
-    var fileName = generateFileName(pathmanage.parse(mdpath).name, mdpath);
-    var absolutefilepath = generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
+    var fileName = recommendedName ? recommendedName : generateFileName(pathmanage.parse(mdpath).name, mdpath);
+    var absolutefilepath = recommendedName ? paths.htmlOutputPath + '/' + fileName : generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + absolutefilepath)
@@ -440,8 +458,10 @@ function addIndexList(list) {
             addIndexList(node)
         } else if (typeof node === 'object' && node !== null) {
             let key = Object.keys(node)[0];
-            mdpath = node[key];
-            addIndexTableToHtml();
+            if ( key !== "__extra" ){
+                mdpath = node[key];
+                addIndexTableToHtml();
+            }
         }
     }
     return result;
@@ -562,17 +582,19 @@ function captureIndexTable(jsonData, node){
             last = nestedN;
         } else if ( isObject(current) ){
             for (var key in current) {
-                var nestedN = new IndexTableNode();
-                nestedN.link = generateFileName(
-                    pathmanage.parse(current[key]).name,
-                    current[key], [current[key].indexOf("#") > 0,
-                    current[key].substring(current[key].indexOf("#"))
-                ]);;
-                nestedN.text = key;
-
-                n.children.push(nestedN);
-
-                last = nestedN;
+                if ( key !== '__extra' ){
+                    var nestedN = new IndexTableNode();
+                    nestedN.link = generateFileName(
+                        pathmanage.parse(current[key]).name,
+                        current[key], [current[key].indexOf("#") > 0,
+                        current[key].substring(current[key].indexOf("#"))
+                    ]);;
+                    nestedN.text = key;
+    
+                    n.children.push(nestedN);
+    
+                    last = nestedN;
+                }
             }
 
         } else if ( isArray(current) ){
