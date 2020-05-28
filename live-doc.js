@@ -2,6 +2,8 @@ let marked = require('marked')
 let pathmanage = require('path')
 let docparser = require('./docparser')
 var fs = require('fs');
+var ncp = require('ncp').ncp;
+
 
 [isArray, isObject, cleanUrl, generateFileName, generateAbsolutePath] = require("./utils.js");
 
@@ -64,7 +66,6 @@ class IndexTableNode{
     toString(){
         return this.toStringIndent('')
     }
-
 
     toHtmlIndent(indent){
         if ( !indent )
@@ -129,28 +130,65 @@ function resolveList(list) {
     
                 var replacements = {
                     '%title%': key,
+                    '%docpath%': '',
                     '%content%': resolvedMd.content
                 }
                 var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
-                    return replacements[all] || all;
+                    return all in replacements ? replacements[all] : all;
                 });
     
                 fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
             } else {
                 pathArray = node[key]
+
                 for ( var pi = 0; pi < pathArray.length; ++pi ){
-                    mdpath = pathArray[pi];
-                    var resolvedMd = resolveMarkDown(pathmanage.parse(mdpath).name + '.html')
+                    mdpath = pathArray[pi][0];
+                    var pluginDeployPath = pathArray[pi][1]
+
+                    var pathFileName = pathmanage.parse(mdpath).name
+
+                    var outputPath = ''
+                    var docPath = ''
+                    if ( paths.deployPath ){
+                        outputPath = paths.deployPluginPath + '/' + pluginDeployPath + '/' + pathFileName + '.doc.html'
+                        docPath = pluginDeployPath.split('/').map(p => '..').join('/') + '/../' + (process.platform === 'darwin' ? 'Docs/' : 'docs/')
+                    } else {
+                        outputPath = paths.htmlOutputPath + '/extra/' + pathFileName + '/' + pathFileName + '.doc.html'
+                        docPath = '../../'
+                    }
+                    // paths.htmlOutputPath + '/' + fileName
+                    var resolvedMd = resolveMarkDown(outputPath)
+                    var pathDirectory = pathmanage.dirname(resolvedMd.resolvedLink);
+
+                    fs.mkdirSync(pathDirectory, { recursive: true });
                     result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
         
                     var replacements = {
                         '%title%': key,
+                        '%docpath%': docPath,
                         '%indexList%' : '<p></p>',
                         '%content%': resolvedMd.content
                     }
                     var contentHtml = templateHtml.replace(/%\w+%/g, function (all) {
-                        return replacements[all] || all;
+                        return all in replacements ? replacements[all] : all;
                     });
+
+                    if ( resolvedMd.resources.length ){
+                        var mdFileFolder = pathmanage.dirname(resolvedMd.mdFile)
+                        // copy 'extras' folder
+                        for ( var resIndex = 0; resIndex < resolvedMd.resources.length; ++resIndex ){
+                            var from = mdFileFolder + '/' + resolvedMd.resources[resIndex]
+                            var to = pathDirectory + '/' + resolvedMd.resources[resIndex]
+
+                            ncp.limit = 16;
+
+                            ncp(from, to, function (err){
+                                if (err) {
+                                    return console.error(err);
+                                }
+                            })
+                        }
+                    }
         
                     fs.writeFileSync(resolvedMd.resolvedLink, contentHtml)
                 }
@@ -170,15 +208,19 @@ function resolveMarkDown(recommendedName) {
         'content': '',
         'titles': [],
         'resolvedLink': [],
-        'relativePath': ''
+        'mdFile' : '',
+        'relativePath': '',
+        'resources' : []
     }
 
     var parentDir = pathmanage.resolve(pathmanage.dirname(indexPath))
 
     var mdabsolutepath = parentDir + '/' + mdpath
+    result.mdFile = pathmanage.resolve(mdabsolutepath);
 
-    var fileName = recommendedName ? recommendedName : generateFileName(pathmanage.parse(mdpath).name, mdpath);
-    var absolutefilepath = recommendedName ? paths.htmlOutputPath + '/' + fileName : generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
+    // paths.htmlOutputPath + '/' + fileName
+    var fileName = generateFileName(pathmanage.parse(mdpath).name, mdpath);
+    var absolutefilepath = recommendedName ? recommendedName : generateAbsolutePath(paths.htmlOutputPath, pathmanage.parse(mdpath).name, mdpath);
 
     console.log("Parse: " + mdabsolutepath)
     console.log("   To -->: " + absolutefilepath)
@@ -201,7 +243,6 @@ function resolveMarkDown(recommendedName) {
         if (type === 'plugin') {
             renderer.currentPlugin = value
             renderer.indexCollector[value] = []
-
             return ''
         } else if (type === 'qmlType') {
             renderer.currentType = {
@@ -244,6 +285,11 @@ function resolveMarkDown(recommendedName) {
             return `<h4 id="${renderer.currentType.name}-${value.split(" ").join("%20").replace("(", "%28").replace(")", "%29")}"><code>${value}</code> signal</h2>\n`
         } else if (type === 'qmlSummary') {
             return `<h2>Summary</h2>\n<!-----pluginsummary:${value}----->\n`
+        } else if (type === "using" ){
+            result.resources.push(value)
+            return ``
+        } else if (type === "livekeysInit"){
+            return `<span class="livekeys-init" src="livekeys://${value}"></span>\n`
         }
 
         return ''
@@ -299,6 +345,24 @@ function resolveMarkDown(recommendedName) {
 
     renderer.link = function (href, title, text) {
 
+        if ( href.startsWith("{") && href.endsWith("}") ){
+            var hrefData = href.substr(1, href.length - 2)
+            var hrefType = hrefData.substr(0, hrefData.indexOf(':'))
+            // var hrefDetails = hrefData.substr(hrefData.substr(""))
+            var hrefDetails = hrefData.substr(hrefData.indexOf(":") + 1)
+            if ( hrefType === "livekeys-hover" ){
+                var detailSegments = hrefDetails.split(";")
+                if ( detailSegments.length === 2 ){
+                    var onEnter = detailSegments[0]
+                    var onLeave = detailSegments[1]
+
+                    return `<span class="livekeys-hover" enter="${onEnter}" leave="${onLeave}">${text}</span>`
+                }
+            }
+        } else if ( href.startsWith('livekeys://') ){
+            return '<a class="livekeys-action" target="_blank" href="' + href + '">' + text + '</a>';
+        }
+
         let anchor = false;
         href = mdToHTML(fileName, href, anchor)
         // [href, anchor] = mdToHTML(fileName, href, anchor);
@@ -318,7 +382,7 @@ function resolveMarkDown(recommendedName) {
     };
 
     renderer.heading = function (text, level, raw, slugger) {
-        let id;
+        let id = '';
         if (text.indexOf("{#") > 0) {
             text = text.split("{#");
             id = text[1].slice(0, -1);
@@ -338,7 +402,7 @@ function resolveMarkDown(recommendedName) {
         //         '>\n';
         // }
         // ignore IDs
-        return '<h' + level + ' id="' + id + '">' + text + '</h' + level + '>\n';
+        return '<h' + level + ' ' + (id ? 'id="' + id + '"' : '') + '>' + text + '</h' + level + '>\n';
     };
 
     function mdToHTML(currentFilePath, href, anchor) {

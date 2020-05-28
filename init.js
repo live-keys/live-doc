@@ -32,6 +32,13 @@ parser.addArgument(
     }
 )
 parser.addArgument(
+    ['--deploy'],
+    {
+        help: 'Set the deploy path. Will deploy docs and extras accordingly.',
+        nargs: 1
+    }
+)
+parser.addArgument(
     ['--output-path'],
     {
         help: 'Set the output path. Default is in source/doc/output',
@@ -57,6 +64,11 @@ var options = {
     disableDoxygen : args['disable_doxygen'] ? true : false
 };
 
+var deployPath = args['deploy'] ? args['deploy'][0] : ''
+var deployPluginPath = process.platform === 'darwin' ? deployPath + '/PlugIns' : deployPath + '/plugins'
+var deployDocsPath = process.platform === 'darwin' ? deployPath + '/Docs' : deployPath + '/docs'
+
+
 var paths = {
     source : src,
     sourceDoc : src + '/doc',
@@ -64,8 +76,11 @@ var paths = {
     sourceDocPages : src + '/doc/pages',
     templateFile : args['template_file'] ? args['template_file'][0] : src + "/doc/src/template.tpl.html",
     outputPath : src + '/doc/output',
-    htmlOutputPath : output,
-    htmlOutputIncludePath : output + '/include'
+    htmlOutputPath : deployPath ? deployDocsPath : output,
+    htmlOutputIncludePath : deployPath ? deployDocsPath + '/include' : output + '/include',
+    deployPath : deployPath,
+    deployPluginPath : deployPluginPath,
+    deployDocsPath : deployDocsPath
 }
 
 var indexPath = src + "/doc/pages";
@@ -109,22 +124,6 @@ function IndexLink(name, link) {
 function IndexList() {
     this.data = []
 }
-
-module.exports = [src,
-    indexPath,
-    outpath,
-    absoluteOutPath,
-    srcpath,
-    templateHtmlPath,
-    templateHtml,
-    indexTablePath,
-    obj,
-    IndexTitle,
-    IndexLink,
-    IndexList,
-    options,
-    paths
-]
 
 function makeDirs() {
     if (!fs.existsSync(outpath)) {
@@ -175,3 +174,20 @@ function copyInclude(){
         }
     })
 }
+
+
+module.exports = [src,
+    indexPath,
+    outpath,
+    absoluteOutPath,
+    srcpath,
+    templateHtmlPath,
+    templateHtml,
+    indexTablePath,
+    obj,
+    IndexTitle,
+    IndexLink,
+    IndexList,
+    options,
+    paths
+]
