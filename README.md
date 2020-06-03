@@ -1,4 +1,4 @@
-# LiveCV documentation building scripts
+# Livekeys documentation building scripts
 
 ## Requirements
 
@@ -14,10 +14,10 @@ Simply clone the repo, install requirements, and run the script on livecv's sour
 The generated html files should be available in the ```output``` directory:
 
 ```
-git clone https://github.com/livecv/live-doc.git
+git clone https://github.com/live-keys/live-doc.git
 cd live-doc
 npm install
-node live-doc.js <path_to_livecv_source>
-cd <path_to_livecv_source>
+node live-doc.js <path_to_livekeys_source>
+cd <path_to_livekeys_source>
 ls doc/output
 ```
