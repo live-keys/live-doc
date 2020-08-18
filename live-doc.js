@@ -159,8 +159,9 @@ function resolveList(list) {
                     // paths.htmlOutputPath + '/' + fileName
                     var resolvedMd = resolveMarkDown(outputPath)
                     var pathDirectory = pathmanage.dirname(resolvedMd.resolvedLink);
-
-                    fs.mkdirSync(pathDirectory, { recursive: true });
+                    
+                    if ( !fs.existsSync(pathDirectory) )
+                        fs.mkdirSync(pathDirectory, { recursive: true });
                     result.data.push(new IndexLink(key, resolvedMd.resolvedLink))
         
                     var replacements = {

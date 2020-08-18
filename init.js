@@ -65,6 +65,8 @@ var options = {
 };
 
 var deployPath = args['deploy'] ? args['deploy'][0] : ''
+if ( deployPath.endsWith('/') )
+    deployPath = deployPath.substr(0, deployPath.length - 1)
 var deployPluginPath = process.platform === 'darwin' ? deployPath + '/PlugIns' : deployPath + '/plugins'
 var deployDocsPath = process.platform === 'darwin' ? deployPath + '/Docs' : deployPath + '/docs'
 
